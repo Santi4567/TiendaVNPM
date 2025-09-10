@@ -101,7 +101,7 @@ const GestionClientes = () => {
 
     try {
       const url = modoEdicion 
-        ? `${API_URL}:3001/api/clientes/editar/${clienteEditando.ID}`
+        ? `${API_URL}/api/clientes/editar/${clienteEditando.ID}`
         : `${API_URL}/api/clientes/agregar`;
       
       const method = modoEdicion ? 'PUT' : 'POST';
