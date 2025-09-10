@@ -235,7 +235,7 @@ const Caja = () => {
     }
     
     try {
-      const response = await fetch(`${API_URL}/api/venta/finalizar`, {
+      const response = await fetch(`${API_URL}/api/ventas/finalizar`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

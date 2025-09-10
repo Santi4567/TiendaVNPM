@@ -20,6 +20,7 @@ const HistoricoVentas = () => {
   // Función para obtener fecha actual en formato YYYY-MM-DD
   const obtenerFechaHoy = () => {
     const hoy = new Date();
+    console.log(`Fecha obtenida ${hoy}`);
     return hoy.toISOString().split('T')[0];
   };
 
