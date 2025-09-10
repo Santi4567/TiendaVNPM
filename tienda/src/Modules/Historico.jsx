@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Header from './Header';
+const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:3001';
 
 const HistoricoVentas = () => {
   // Estados principales
@@ -42,7 +43,7 @@ const HistoricoVentas = () => {
   const cargarVentasHoy = async () => {
     setCargando(true);
     try {
-      const response = await fetch('http://localhost:3001/api/ventas/hoy');
+      const response = await fetch(`${API_URL}/api/ventas/hoy`);
       const ventasData = await response.json();
       setVentas(ventasData);
       setEsHoy(true);
@@ -58,7 +59,7 @@ const HistoricoVentas = () => {
   const cargarTotalHoy = async () => {
     setCargandoTotal(true);
     try {
-      const response = await fetch('http://localhost:3001/api/ventas/total/hoy');
+      const response = await fetch(`${API_URL}/api/ventas/total/hoy`);
       const totalData = await response.json();
       setTotalVentas(totalData);
     } catch (error) {
@@ -73,7 +74,7 @@ const HistoricoVentas = () => {
   const cargarVentasPorFecha = async (fecha) => {
     setCargando(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/ventas/fecha/${fecha}`);
+      const response = await fetch(`${API_URL}/api/ventas/fecha/${fecha}`);
       const ventasData = await response.json();
       setVentas(ventasData);
       
@@ -91,7 +92,7 @@ const HistoricoVentas = () => {
   const cargarTotalPorFecha = async (fecha) => {
     setCargandoTotal(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/ventas/total/${fecha}`);
+      const response = await fetch(`${API_URL}/api/ventas/total/${fecha}`);
       const totalData = await response.json();
       setTotalVentas(totalData);
     } catch (error) {

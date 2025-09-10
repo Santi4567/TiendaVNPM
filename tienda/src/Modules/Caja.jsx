@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Header from './Header';
+const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:3001';
 
 const Caja = () => {
   const [busqueda, setBusqueda] = useState('');
@@ -30,7 +31,7 @@ const Caja = () => {
 
     setCargando(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/productos/buscar?q=${encodeURIComponent(termino)}`);
+      const response = await fetch(`${API_URL}/api/productos/buscar?q=${encodeURIComponent(termino)}`);
       const productos = await response.json();
       setProductosFiltrados(productos);
     } catch (error) {
@@ -45,7 +46,7 @@ const Caja = () => {
   const buscarPorCodigoExacto = async (codigo) => {
     setCargando(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/productos/buscar?q=${encodeURIComponent(codigo)}`);
+      const response = await fetch(`${API_URL}/api/productos/buscar?q=${encodeURIComponent(codigo)}`);
       const productos = await response.json();
       
       // Buscar producto con código exacto
@@ -78,7 +79,7 @@ const Caja = () => {
 
     setCargandoClientes(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/clientes/buscar?q=${encodeURIComponent(termino)}`);
+      const response = await fetch(`${API_URL}/api/clientes/buscar?q=${encodeURIComponent(termino)}`);
       const clientes = await response.json();
       setClientesFiltrados(clientes);
     } catch (error) {
@@ -234,7 +235,7 @@ const Caja = () => {
     }
     
     try {
-      const response = await fetch('http://localhost:3001/api/venta/finalizar', {
+      const response = await fetch(`${API_URL}/api/venta/finalizar`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -281,7 +282,7 @@ const Caja = () => {
     }
     
     try {
-      const response = await fetch('http://localhost:3001/api/cuenta/agregar', {
+      const response = await fetch(`${API_URL}/api/cuenta/agregar`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

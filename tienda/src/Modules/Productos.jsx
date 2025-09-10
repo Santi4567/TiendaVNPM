@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Header from './Header';
+const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:3001';
 
 const GestionProductos = () => {
   // Estados principales
@@ -35,7 +36,7 @@ const GestionProductos = () => {
   const cargarProductos = async () => {
     setCargando(true);
     try {
-      const response = await fetch('http://localhost:3001/api/productos/todos');
+      const response = await fetch(`${API_URL}/api/productos/todos`);
       const productosData = await response.json();
       setProductos(productosData);
       setProductosFiltrados(productosData);
@@ -143,8 +144,8 @@ const GestionProductos = () => {
 
     try {
       const url = modoEdicion 
-        ? `http://localhost:3001/api/productos/editar/${productoEditando.ID}`
-        : 'http://localhost:3001/api/productos/agregar';
+        ? `${API_URL}/api/productos/editar/${productoEditando.ID}`
+        : `${API_URL}/api/productos/agregar`;
       
       const method = modoEdicion ? 'PUT' : 'POST';
 
@@ -190,7 +191,7 @@ const GestionProductos = () => {
     if (!confirmar) return;
 
     try {
-      const response = await fetch(`http://localhost:3001/api/productos/eliminar/${producto.ID}`, {
+      const response = await fetch(`${API_URL}/api/productos/eliminar/${producto.ID}`, {
         method: 'DELETE'
       });
 

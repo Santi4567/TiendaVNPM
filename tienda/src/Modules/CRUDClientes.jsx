@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Header from './Header';
+const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:3001';
 
 const GestionClientes = () => {
   // Estados principales
@@ -26,7 +27,7 @@ const GestionClientes = () => {
   const cargarClientes = async () => {
     setCargando(true);
     try {
-      const response = await fetch('http://localhost:3001/api/clientes/todos');
+      const response = await fetch(`${API_URL}/api/clientes/todos`);
       const clientesData = await response.json();
       setClientes(clientesData);
       setClientesFiltrados(clientesData);
@@ -100,8 +101,8 @@ const GestionClientes = () => {
 
     try {
       const url = modoEdicion 
-        ? `http://localhost:3001/api/clientes/editar/${clienteEditando.ID}`
-        : 'http://localhost:3001/api/clientes/agregar';
+        ? `${API_URL}:3001/api/clientes/editar/${clienteEditando.ID}`
+        : `${API_URL}/api/clientes/agregar`;
       
       const method = modoEdicion ? 'PUT' : 'POST';
 
@@ -140,7 +141,7 @@ const GestionClientes = () => {
     if (!confirmar) return;
 
     try {
-      const response = await fetch(`http://localhost:3001/api/clientes/eliminar/${cliente.ID}`, {
+      const response = await fetch(`${API_URL}/api/clientes/eliminar/${cliente.ID}`, {
         method: 'DELETE'
       });
 

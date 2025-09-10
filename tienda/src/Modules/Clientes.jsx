@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Header from './Header';
+const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:3001';
 
 const Clientes = () => {
   // Estados para clientes
@@ -23,7 +24,7 @@ const Clientes = () => {
 
     setCargandoClientes(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/clientes/buscar?q=${encodeURIComponent(termino)}`);
+      const response = await fetch(`${API_URL}/api/clientes/buscar?q=${encodeURIComponent(termino)}`);
       const clientes = await response.json();
       setClientesFiltrados(clientes);
     } catch (error) {
@@ -38,7 +39,7 @@ const Clientes = () => {
   const obtenerTodasLasCuentas = async () => {
     setCargandoCuentas(true);
     try {
-      const response = await fetch('http://localhost:3001/api/cuentas/todas');
+      const response = await fetch(`${API_URL}/api/cuentas/todas`);
       const cuentas = await response.json();
       setTodasLasCuentas(cuentas);
     } catch (error) {
@@ -53,7 +54,7 @@ const Clientes = () => {
   const obtenerCuentasCliente = async (clienteId) => {
     setCargandoCuentas(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/cuentas/cliente/${clienteId}`);
+      const response = await fetch(`${API_URL}/api/cuentas/cliente/${clienteId}`);
       const cuentas = await response.json();
       setCuentasCliente(cuentas);
     } catch (error) {
@@ -113,7 +114,7 @@ const Clientes = () => {
     if (!confirmar) return;
 
     try {
-      const response = await fetch('http://localhost:3001/api/cuenta/saldar', {
+      const response = await fetch(`${API_URL}/api/cuenta/saldar`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
