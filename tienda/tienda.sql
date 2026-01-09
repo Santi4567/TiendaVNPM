@@ -63,7 +63,7 @@ CREATE TABLE `cuentas` (
   `ID_Cliente` int(11) NOT NULL,
   `ID_Producto` int(11) NOT NULL,
   `Precio` decimal(10,4) NOT NULL,
-  `Fecha` date NOT NULL DEFAULT curdate(),
+  `Fecha` date NOT NULL DEFAULT (CURRENT_DATE),
   `Estado` tinyint(1) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -80,7 +80,7 @@ CREATE TABLE `productos` (
   `Unidades` int(11) DEFAULT NULL,
   `Precio_Unidad` decimal(10,4) DEFAULT NULL,
   `Precio_Publico` decimal(10,4) NOT NULL,
-  `Fecha` timestamp NOT NULL DEFAULT current_timestamp(),
+  `Fecha` date NOT NULL DEFAULT (CURRENT_DATE),
   `Codigo` varchar(100) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
