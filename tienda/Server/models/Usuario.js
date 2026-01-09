@@ -200,6 +200,28 @@ const UsuarioModel = {
         } catch (error) {
             throw error;
         }
+    },
+    /**
+     * Obtiene la lista de nombres de permisos de un usuario
+     * Retorna un array de strings: ['view.client', 'add.client']
+     */
+    getPermissions: async (userId) => {
+        try {
+            const db = getDB();
+            const sql = `
+                SELECT p.Nombre
+                FROM roles_permisos rp
+                JOIN users u ON u.ID_Rol = rp.ID_Rol
+                JOIN permisos p ON rp.ID_Permiso = p.ID
+                WHERE u.ID = ?
+            `;
+            const [rows] = await db.execute(sql, [userId]);
+            
+            // Transformamos [{Nombre: 'view.client'}, ...] a ['view.client', ...]
+            return rows.map(row => row.Nombre);
+        } catch (error) {
+            throw error;
+        }
     }
 };
 

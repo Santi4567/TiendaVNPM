@@ -143,8 +143,55 @@ const requireAdminRole = async (req, res, next) => {
   }
 };
 
+/**
+ * Middleware Dinámico de Permisos
+ * Uso: router.post('/', requirePermission('add.client'), controller)
+ */
+const requirePermission = (permisoRequerido) => {
+  return async (req, res, next) => {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Usuario no autenticado' });
+      }
+
+      // 1. Obtener datos del usuario (Rol y Activo)
+      const user = await UsuarioModel.findById(userId);
+      
+      if (!user || !user.Activo) {
+        return res.status(403).json({ error: 'Cuenta inactiva o no encontrada' });
+      }
+
+      // 2. MODO DIOS: Si es ADMIN (ID 1), pasa siempre
+      const ADMIN_ROLE_ID = 1;
+      if (user.ID_Rol === ADMIN_ROLE_ID) {
+        return next(); // <--- El Admin se salta la verificación
+      }
+
+      // 3. Si no es Admin, buscamos sus permisos
+      const permisosUsuario = await UsuarioModel.getPermissions(userId);
+
+      // 4. Verificamos si tiene el permiso exacto
+      if (!permisosUsuario.includes(permisoRequerido)) {
+        return res.status(403).json({
+          success: false,
+          error: 'ACCESO_DENEGADO',
+          message: `No tienes permiso para realizar esta acción. Requieres: ${permisoRequerido}`
+        });
+      }
+
+      next();
+
+    } catch (error) {
+      console.error('Error en requirePermission:', error);
+      res.status(500).json({ error: 'Error al verificar permisos' });
+    }
+  };
+};
+
 module.exports = {
   verifyToken,
-  requireAdmin: requireAdminRole, // Mantenemos el nombre original para compatibilidad
+  requireAdmin: requireAdminRole, requirePermission,// Mantenemos el nombre original para compatibilidad
   JWT_SECRET //<-- SI se ocupa, no lo borres (Dont delete)
 };

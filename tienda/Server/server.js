@@ -10,8 +10,8 @@ dotenv.config();
 // Importar las rutas
 const login = require('./routes/authRoutes'); // ARutas para el Login y Registro de usuarios
 const userRoutes = require('./routes/userRoutes');
-const productosRoutes = require('./routes/productos');
-const clientesRoutes = require('./routes/clientes');
+const productosRoutes = require('./routes/productoRoutes');
+const clientesRoutes = require('./routes/clienteRoutes');
 const cuentasRoutes = require('./routes/cuentas');
 const ventasRoutes = require('./routes/ventas');
 
