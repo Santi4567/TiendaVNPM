@@ -69,4 +69,27 @@ const settleCuenta = async (req, res) => {
     }
 };
 
-module.exports = { getCuentas, getCuentasCliente, addCuenta, settleCuenta };
+
+// 5. ELIMINAR UN ÍTEM ESPECÍFICO (Corrección de error)
+const deleteCuentaLine = async (req, res) => {
+    try {
+        const { id } = req.params; // El ID de la fila en la tabla 'cuentas'
+
+        // 1. Verificar si existe el registro
+        const current = await CuentaModel.findById(id);
+        if (!current) {
+            return res.status(404).json({ error: 'El registro de cuenta no existe' });
+        }
+
+        // 2. Eliminar
+        await CuentaModel.deleteLineItem(id);
+
+        res.json({ success: true, mensaje: 'Producto eliminado de la cuenta correctamente' });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error al eliminar ítem de la cuenta' });
+    }
+};
+
+module.exports = { getCuentas, getCuentasCliente, addCuenta, settleCuenta, deleteCuentaLine };

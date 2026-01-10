@@ -1,8 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const { 
-    getCuentas, getCuentasCliente, addCuenta, settleCuenta 
-} = require('../controllers/cuentaController');
+    getCuentas, 
+    getCuentasCliente, 
+    addCuenta, 
+    settleCuenta,
+    deleteCuentaLine 
+    } = require('../controllers/cuentaController');
 const { validateAgregarCuenta, validateSaldarCuenta } = require('../validators/cuentaValidator');
 const { verifyToken, requirePermission } = require('../middleware/auth'); 
 
@@ -26,6 +30,14 @@ router.post('/saldar',
     requirePermission('settle.debt'), 
     validateSaldarCuenta, 
     settleCuenta
+);
+
+// RUTA DE CORRECCIÓN
+// Solo borrar. Requiere permiso 'update.debt' (o el nombre que hayas elegido para correcciones)
+router.delete('/eliminar/:id', 
+    verifyToken, 
+    requirePermission('update.debt'), 
+    deleteCuentaLine
 );
 
 module.exports = router;

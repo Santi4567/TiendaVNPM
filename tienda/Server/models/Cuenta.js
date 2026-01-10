@@ -86,6 +86,29 @@ const CuentaModel = {
 
             return deudas.length; // Retornamos cuántos items se cobraron
         } catch (error) { throw error; }
+    },
+
+    /**
+     * Busca una línea de cuenta por ID (para verificar existencia)
+     */
+    findById: async (id) => {
+        try {
+            const db = getDB();
+            const [rows] = await db.execute('SELECT ID FROM cuentas WHERE ID = ?', [id]);
+            return rows[0];
+        } catch (error) { throw error; }
+    },
+
+    /**
+     * Eliminar una línea individual de deuda
+     * (Para corregir cuando agregan un producto de más)
+     */
+    deleteLineItem: async (id) => {
+        try {
+            const db = getDB();
+            const [result] = await db.execute('DELETE FROM cuentas WHERE ID = ?', [id]);
+            return result.affectedRows > 0;
+        } catch (error) { throw error; }
     }
 };
 

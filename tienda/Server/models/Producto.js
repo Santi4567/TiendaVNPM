@@ -64,13 +64,14 @@ const ProductoModel = {
             const db = getDB();
             const sql = `
                 INSERT INTO productos 
-                (Producto, Precio_Proveedor, Stock, Precio_Unidad, Precio_Publico, Codigo, Fecha_Caducidad) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (Producto, Precio_Proveedor, Stock, Stock_Minimo, Precio_Unidad, Precio_Publico, Codigo, Fecha_Caducidad) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             `;
             const [result] = await db.execute(sql, [
                 data.producto,
                 data.precio_proveedor || null,
-                data.stock || 0, // Usamos la nueva columna Stock
+                data.stock || 0,
+                data.stock_minimo || 5, // <--- NUEVO CAMPO (Default 5)
                 data.precio_unidad || null,
                 data.precio_publico,
                 data.codigo || null,
@@ -85,7 +86,7 @@ const ProductoModel = {
             const db = getDB();
             const sql = `
                 UPDATE productos 
-                SET Producto = ?, Precio_Proveedor = ?, Stock = ?, 
+                SET Producto = ?, Precio_Proveedor = ?, Stock = ?, Stock_Minimo = ?, 
                     Precio_Unidad = ?, Precio_Publico = ?, Codigo = ?, Fecha_Caducidad = ?,
                     Fecha_Ultimo_Ingreso = NOW() 
                 WHERE ID = ?
@@ -94,6 +95,7 @@ const ProductoModel = {
                 data.producto,
                 data.precio_proveedor || null,
                 data.stock || 0,
+                data.stock_minimo || 5, // <--- NUEVO CAMPO
                 data.precio_unidad || null,
                 data.precio_publico,
                 data.codigo || null,
@@ -125,6 +127,43 @@ const ProductoModel = {
             const db = getDB();
             const [result] = await db.execute('DELETE FROM productos WHERE ID = ?', [id]);
             return result.affectedRows > 0;
+        } catch (error) { throw error; }
+    },
+
+    /**
+     * ALERTA 1: Productos con Stock Bajo
+     * Busca productos donde el Stock actual sea menor o igual al Stock Mínimo definido
+     */
+    getLowStockAlerts: async () => {
+        try {
+            const db = getDB();
+            const sql = `
+                SELECT ID, Producto, Stock, Stock_Minimo, Precio_Proveedor
+                FROM productos 
+                WHERE Stock <= Stock_Minimo
+                ORDER BY Stock ASC
+            `;
+            const [rows] = await db.execute(sql);
+            return rows;
+        } catch (error) { throw error; }
+    },
+
+    /**
+     * ALERTA 2: Productos Próximos a Caducar
+     * Busca productos que caduquen en los próximos 30 días (ajustable)
+     */
+    getExpiringAlerts: async (dias = 30) => {
+        try {
+            const db = getDB();
+            const sql = `
+                SELECT ID, Producto, Stock, Fecha_Caducidad, DATEDIFF(Fecha_Caducidad, NOW()) as Dias_Restantes
+                FROM productos 
+                WHERE Fecha_Caducidad IS NOT NULL 
+                  AND Fecha_Caducidad BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL ? DAY)
+                ORDER BY Fecha_Caducidad ASC
+            `;
+            const [rows] = await db.execute(sql, [dias]);
+            return rows;
         } catch (error) { throw error; }
     }
 };

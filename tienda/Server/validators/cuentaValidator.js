@@ -33,4 +33,6 @@ const validateSaldarCuenta = [
     validateResult
 ];
 
+
+
 module.exports = { validateAgregarCuenta, validateSaldarCuenta };

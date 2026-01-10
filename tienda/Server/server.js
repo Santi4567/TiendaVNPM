@@ -8,12 +8,13 @@ const { connectDB } = require('./config/database');
 dotenv.config(); 
 
 // Importar las rutas
-const login = require('./routes/authRoutes'); // ARutas para el Login y Registro de usuarios
+const login = require('./routes/authRoutes'); // Rutas para el Login y Registro de usuarios
+const rolRoutes = require('./routes/rolRoutes'); // Rutas administrativas de Roles
 const userRoutes = require('./routes/userRoutes');
 const productosRoutes = require('./routes/productoRoutes');
 const clientesRoutes = require('./routes/clienteRoutes');
 const cuentasRoutes = require('./routes/cuentaRoutes');
-const ventasRoutes = require('./routes/ventas');
+const ventasRoutes = require('./routes/ventaRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3001; // Usar variable de entorno o 3001 por defecto
@@ -38,6 +39,7 @@ app.use(cookieParser());
 
 // Configurar las rutas
 app.use('/api/users', login);
+app.use('/api/roles', rolRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/clientes', clientesRoutes);
