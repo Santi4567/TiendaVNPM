@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import Header from './Header';
-const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:3001';
+import { useAuth } from '../context/AuthContext';
+import { apiCall } from '../utils/api';
 
 const GestionClientes = () => {
+  const { hasPermission } = useAuth(); // Hook de permisos
+
   // Estados principales
   const [clientes, setClientes] = useState([]);
   const [clientesFiltrados, setClientesFiltrados] = useState([]);
@@ -23,14 +25,16 @@ const GestionClientes = () => {
   // Estados para mensajes
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
 
-  // Cargar todos los clientes
+  // 1. Cargar todos los clientes
   const cargarClientes = async () => {
+    if (!hasPermission('view.client')) return;
+
     setCargando(true);
     try {
-      const response = await fetch(`${API_URL}/api/clientes/todos`);
-      const clientesData = await response.json();
-      setClientes(clientesData);
-      setClientesFiltrados(clientesData);
+      const response = await apiCall('/api/clientes/todos');
+      const data = response.data || [];
+      setClientes(data);
+      setClientesFiltrados(data);
     } catch (error) {
       console.error('Error cargando clientes:', error);
       mostrarMensaje('error', 'Error al cargar los clientes');
@@ -51,12 +55,11 @@ const GestionClientes = () => {
     }
   }, [busqueda, clientes]);
 
-  // Cargar clientes al montar el componente
+  // Cargar al montar
   useEffect(() => {
     cargarClientes();
   }, []);
 
-  // Función para mostrar mensajes
   const mostrarMensaje = (tipo, texto) => {
     setMensaje({ tipo, texto });
     setTimeout(() => {
@@ -64,7 +67,7 @@ const GestionClientes = () => {
     }, 3000);
   };
 
-  // Abrir formulario para agregar
+  // Acciones del formulario
   const abrirFormularioAgregar = () => {
     setMostrarFormulario(true);
     setModoEdicion(false);
@@ -73,7 +76,6 @@ const GestionClientes = () => {
     setClienteSeleccionado(null);
   };
 
-  // Abrir formulario para editar
   const abrirFormularioEditar = (cliente) => {
     setMostrarFormulario(true);
     setModoEdicion(true);
@@ -81,7 +83,6 @@ const GestionClientes = () => {
     setClienteEditando(cliente);
   };
 
-  // Cerrar formulario
   const cerrarFormulario = () => {
     setMostrarFormulario(false);
     setModoEdicion(false);
@@ -90,7 +91,7 @@ const GestionClientes = () => {
     setClienteSeleccionado(null);
   };
 
-  // Manejar envío del formulario
+  // 2. Manejar envío (Crear / Editar)
   const manejarEnvio = async (e) => {
     e.preventDefault();
     
@@ -100,30 +101,22 @@ const GestionClientes = () => {
     }
 
     try {
-      const url = modoEdicion 
-        ? `${API_URL}/api/clientes/editar/${clienteEditando.ID}`
-        : `${API_URL}/api/clientes/agregar`;
+      const endpoint = modoEdicion 
+        ? `/api/clientes/editar/${clienteEditando.ID}`
+        : `/api/clientes/agregar`;
       
       const method = modoEdicion ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          nombre: nombreCliente.trim()
-        })
+      const response = await apiCall(endpoint, method, {
+        nombre: nombreCliente.trim()
       });
 
-      const resultado = await response.json();
-
-      if (resultado.success) {
-        mostrarMensaje('success', resultado.mensaje);
+      if (response.data.success) {
+        mostrarMensaje('success', response.data.mensaje);
         cerrarFormulario();
         cargarClientes();
       } else {
-        mostrarMensaje('error', resultado.error);
+        mostrarMensaje('error', response.data.error || 'Error al guardar');
       }
     } catch (error) {
       console.error('Error guardando cliente:', error);
@@ -131,41 +124,46 @@ const GestionClientes = () => {
     }
   };
 
-  // Eliminar cliente
+  // 3. Eliminar cliente
   const eliminarCliente = async (cliente) => {
     const confirmar = window.confirm(
-      `¿Está seguro de eliminar al cliente "${cliente.Nombre}"?\n` +
-      `Esta acción no se puede deshacer.`
+      `¿Eliminar al cliente "${cliente.Nombre}"?\nEsta acción no se puede deshacer.`
     );
 
     if (!confirmar) return;
 
     try {
-      const response = await fetch(`${API_URL}/api/clientes/eliminar/${cliente.ID}`, {
-        method: 'DELETE'
-      });
+      const response = await apiCall(`/api/clientes/eliminar/${cliente.ID}`, 'DELETE');
 
-      const resultado = await response.json();
-
-      if (resultado.success) {
-        mostrarMensaje('success', resultado.mensaje);
+      if (response.data.success) {
+        mostrarMensaje('success', response.data.mensaje);
         setClienteSeleccionado(null);
         cargarClientes();
       } else {
-        mostrarMensaje('error', resultado.error);
+        // Aquí atraparemos si el backend dice "No se puede borrar porque tiene deudas"
+        mostrarMensaje('error', response.data.error || 'Error al eliminar');
       }
     } catch (error) {
-      console.error('Error eliminando cliente:', error);
-      mostrarMensaje('error', 'Error de conexión al eliminar cliente');
+      console.error('Error eliminando:', error);
+      mostrarMensaje('error', 'Error de conexión al eliminar');
     }
   };
 
+  // --- RENDER ---
+  
+  // Protección de vista
+  if (!hasPermission('view.client')) {
+    return (
+        <div className="p-8 text-center text-red-500 bg-red-50 rounded-lg m-4 border border-red-200">
+            No tienes permisos para gestionar la cartera de clientes.
+        </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Título */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Gestión de Clientes</h1>
         </div>
@@ -181,7 +179,7 @@ const GestionClientes = () => {
           </div>
         )}
 
-        {/* Formulario */}
+        {/* FORMULARIO */}
         {mostrarFormulario ? (
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
@@ -199,7 +197,7 @@ const GestionClientes = () => {
                   value={nombreCliente}
                   onChange={(e) => setNombreCliente(e.target.value)}
                   placeholder="Ingrese el nombre del cliente"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   autoFocus
                 />
               </div>
@@ -207,14 +205,14 @@ const GestionClientes = () => {
               <div className="flex space-x-3">
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
                 >
-                  {modoEdicion ? 'Actualizar Cliente' : 'Agregar Cliente'}
+                  {modoEdicion ? 'Actualizar' : 'Guardar'}
                 </button>
                 <button
                   type="button"
                   onClick={cerrarFormulario}
-                  className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
+                  className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium"
                 >
                   Cancelar
                 </button>
@@ -223,7 +221,7 @@ const GestionClientes = () => {
           </div>
         ) : (
           <>
-            {/* Buscador y botón agregar */}
+            {/* BARRA SUPERIOR: Buscador y Agregar */}
             <div className="mb-6 flex flex-col sm:flex-row gap-4">
               {/* Buscador */}
               <div className="flex-1 relative">
@@ -232,7 +230,7 @@ const GestionClientes = () => {
                   placeholder="Buscar cliente por nombre..."
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
-                  className="w-full px-4 py-3 pl-12 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 pl-12 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center">
                   <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -241,45 +239,56 @@ const GestionClientes = () => {
                 </div>
               </div>
               
-              {/* Botón agregar */}
-              <button
-                onClick={abrirFormularioAgregar}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center space-x-2"
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                <span>Agregar Cliente</span>
-              </button>
+              {/* Botón AGREGAR: Solo si tiene permiso add.client */}
+              {hasPermission('add.client') && (
+                <button
+                  onClick={abrirFormularioAgregar}
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center space-x-2"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  <span>Agregar Cliente</span>
+                </button>
+              )}
             </div>
 
-            {/* Botones de acción para cliente seleccionado */}
+            {/* PANEL DE ACCIONES: Editar/Eliminar */}
             {clienteSeleccionado && (
-              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg animate-fade-in-down">
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="font-medium text-blue-900">Cliente seleccionado:</p>
-                    <p className="text-blue-700 text-lg">{clienteSeleccionado.Nombre}</p>
+                    <p className="text-blue-700 text-lg font-bold">{clienteSeleccionado.Nombre}</p>
                   </div>
                   <div className="flex space-x-3">
-                    <button
-                      onClick={() => abrirFormularioEditar(clienteSeleccionado)}
-                      className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium flex items-center space-x-1"
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                      <span>Editar</span>
-                    </button>
-                    <button
-                      onClick={() => eliminarCliente(clienteSeleccionado)}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center space-x-1"
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      <span>Eliminar</span>
-                    </button>
+                    
+                    {/* Botón EDITAR: Solo si tiene update.client */}
+                    {hasPermission('update.client') && (
+                        <button
+                        onClick={() => abrirFormularioEditar(clienteSeleccionado)}
+                        className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium flex items-center space-x-1"
+                        >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        <span>Editar</span>
+                        </button>
+                    )}
+
+                    {/* Botón ELIMINAR: Solo si tiene delete.client */}
+                    {hasPermission('delete.client') && (
+                        <button
+                        onClick={() => eliminarCliente(clienteSeleccionado)}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium flex items-center space-x-1"
+                        >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        <span>Eliminar</span>
+                        </button>
+                    )}
+
                     <button
                       onClick={() => setClienteSeleccionado(null)}
                       className="text-gray-600 hover:text-gray-900 text-sm font-medium"
@@ -291,8 +300,8 @@ const GestionClientes = () => {
               </div>
             )}
 
-            {/* Tabla de clientes */}
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            {/* TABLA DE CLIENTES */}
+            <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
               <div className="px-6 py-4 bg-gray-50 border-b">
                 <h2 className="text-xl font-semibold text-gray-900">
                   Lista de Clientes ({clientesFiltrados.length})
@@ -306,17 +315,17 @@ const GestionClientes = () => {
                 </div>
               ) : (
                 <div className="max-h-96 overflow-x-auto">
-                  <table className="w-full  text-sm">
-                    <thead className="bg-gray-50 sticky top-0">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-100 sticky top-0">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
                           ID
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
                           Nombre
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Acciones
+                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                          Estado
                         </th>
                       </tr>
                     </thead>
@@ -325,22 +334,22 @@ const GestionClientes = () => {
                         clientesFiltrados.map(cliente => (
                           <tr 
                             key={cliente.ID} 
-                            className={`hover:bg-gray-50 cursor-pointer ${
-                              clienteSeleccionado?.ID === cliente.ID ? 'bg-blue-50' : ''
+                            className={`hover:bg-blue-50 cursor-pointer transition-colors ${
+                              clienteSeleccionado?.ID === cliente.ID ? 'bg-blue-100' : ''
                             }`}
                             onClick={() => setClienteSeleccionado(cliente)}
                           >
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {cliente.ID}
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              #{cliente.ID}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                               {cliente.Nombre}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {clienteSeleccionado?.ID === cliente.ID ? (
-                                <span className="text-blue-600 font-medium">✓ Seleccionado</span>
+                                <span className="text-blue-600 font-bold">● Seleccionado</span>
                               ) : (
-                                <span className="text-gray-400">Hacer clic para seleccionar</span>
+                                <span className="text-gray-300">○</span>
                               )}
                             </td>
                           </tr>

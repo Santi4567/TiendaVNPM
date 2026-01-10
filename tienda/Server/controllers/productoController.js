@@ -96,6 +96,39 @@ const deleteProducto = async (req, res) => {
     }
 };
 
+
+// ALERTA DE STOCK BAJO
+const getAlertasStock = async (req, res) => {
+    try {
+        const productos = await ProductoModel.getLowStockAlerts();
+        res.json({
+            tipo: 'STOCK_BAJO',
+            total: productos.length,
+            data: productos
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Error al obtener alertas de stock' });
+    }
+};
+
+// ALERTA DE CADUCIDAD
+const getAlertasCaducidad = async (req, res) => {
+    try {
+        // Puedes recibir los días por query param (?dias=60), por defecto 30
+        const dias = req.query.dias || 30;
+        const productos = await ProductoModel.getExpiringAlerts(dias);
+        
+        res.json({
+            tipo: 'CADUCIDAD_PRONTA',
+            dias_filtro: dias,
+            total: productos.length,
+            data: productos
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Error al obtener alertas de caducidad' });
+    }
+};
+
 module.exports = {
-    getProductos, searchProductos, createProducto, updateProducto, deleteProducto
+    getProductos, searchProductos, createProducto, updateProducto, deleteProducto, getAlertasCaducidad, getAlertasStock
 };

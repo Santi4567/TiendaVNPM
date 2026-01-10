@@ -22,10 +22,16 @@ const validateProducto = [
     check('stock')
         .optional()
         .isInt({ min: 0 }).withMessage('El stock debe ser un número entero positivo'),
-    
+
+    check('stock_minimo')
+        .optional()
+        .isInt({ min: 0 }).withMessage('El stock mínimo debe ser un número positivo'),
+        
     check('codigo')
         .optional({ checkFalsy: true }) // Permite enviar null o string vacío
         .trim().escape(),
+
+
 
     validateResult
 ];

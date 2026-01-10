@@ -1,75 +1,101 @@
-import { useState } from 'react'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import PrivateRoute from './PrivateRoute';
-import './App.css'
-import Clientes from './Modules/Clientes.jsx';
+import Layout from './Modules/Layout';
+import Login from './Modules/Login';
+
+// Componentes
+import Cuentas from './Modules/Clientes.jsx';
 import Caja from './Modules/Caja.jsx';
-import CRUD from './Modules/CRUDClientes.jsx';
+import Clientes from './Modules/CRUDClientes.jsx';
 import Productos from './Modules/Productos.jsx';
 import Historico from './Modules/Historico.jsx';
+import Dashboard from './Modules/Dashboard.jsx'; 
+import Usuarios from './Modules/Usuarios.jsx'; // <--- ¡Descomentado!
 
+import './App.css';
+
+// Componente de seguridad exclusiva para Admin
+const AdminRoute = ({ children }) => {
+  const { user } = useAuth();
+  
+  // Si user es null (aún no carga) o no es rol 1, fuera.
+  // Nota: PrivateRoute ya valida que exista 'user', así que aquí solo validamos el rol.
+  if (user?.rolId !== 1) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+};
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-        <Router>    
-          <Routes>   
-            <Route path="/" element={<Caja />} />
-            <Route path="/Clienetes" element={<Clientes />} />
-            <Route path="/CRUDClientes" element={<CRUD />} />
-            <Route path="/Productos" element={<Productos />} />
-            <Route path="/Historico" element={<Historico />} />
+    <AuthProvider>
+      <Router>
+        <Routes>
+          {/* Ruta Pública */}
+          <Route path="/login" element={<Login />} />
+
+          {/* Rutas Protegidas (Requieren Login) */}
+          <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
             
-
-
-            {/* Rutas protegidas 
+            {/* Rutas Generales (Accesibles según lógica interna o permisos base) */}
+            <Route path="/" element={<Caja />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            
+            {/* Rutas con Permisos Específicos */}
             <Route 
-              path="/Productos" 
+              path="/clientes" 
               element={
-                <PrivateRoute>
-                  <Productos />
-                </PrivateRoute>
-              } 
-            />
-            <Route 
-              path="/Clientes" 
-              element={
-                <PrivateRoute>
+                <PrivateRoute permiso="view.client">
                   <Clientes />
                 </PrivateRoute>
               } 
             />
             <Route 
-              path="/Caja" 
+              path="/cuentas" 
               element={
-                <PrivateRoute>
-                  <Caja />
+                <PrivateRoute permiso="view.debt">
+                  <Cuentas />
                 </PrivateRoute>
               } 
             />
+            
             <Route 
-              path="/Header" 
+              path="/productos" 
               element={
-                <PrivateRoute>
-                  <Header />
+                <PrivateRoute permiso="view.product">
+                  <Productos />
                 </PrivateRoute>
               } 
             />
+            
             <Route 
-              path="/Historico" 
+              path="/historico" 
               element={
-                <PrivateRoute>
+                <PrivateRoute permiso="view.report">
                   <Historico />
                 </PrivateRoute>
               } 
             />
-            */}
-          </Routes>   
-        </Router>      
-    </>
-  )
+
+            {/* --- RUTA EXCLUSIVA DE ADMIN --- */}
+            <Route 
+              path="/usuarios" 
+              element={
+                <AdminRoute>
+                  <Usuarios />  {/* <--- Componente real conectado a la API */}
+                </AdminRoute>
+              } 
+            />
+
+          </Route>
+          
+          {/* Redirección por defecto */}
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
+  );
 }
 
-export default App
+export default App;

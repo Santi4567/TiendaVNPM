@@ -33,4 +33,18 @@ router.delete('/eliminar/:id',
     deleteProducto
 );
 
+
+// ALERTAS (Dashboard)
+router.get('/alertas/stock', 
+    verifyToken, 
+    requirePermission('view.alerts'), 
+    getAlertasStock
+);
+
+router.get('/alertas/caducidad', 
+    verifyToken, 
+    requirePermission('view.alerts'), 
+    getAlertasCaducidad
+);
+
 module.exports = router;
