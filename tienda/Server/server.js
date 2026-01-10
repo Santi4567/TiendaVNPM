@@ -12,7 +12,7 @@ const login = require('./routes/authRoutes'); // ARutas para el Login y Registro
 const userRoutes = require('./routes/userRoutes');
 const productosRoutes = require('./routes/productoRoutes');
 const clientesRoutes = require('./routes/clienteRoutes');
-const cuentasRoutes = require('./routes/cuentas');
+const cuentasRoutes = require('./routes/cuentaRoutes');
 const ventasRoutes = require('./routes/ventas');
 
 const app = express();
