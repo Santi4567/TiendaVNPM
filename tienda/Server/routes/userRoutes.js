@@ -4,10 +4,12 @@ const {
     createUser, 
     updateUser, 
     getProfile,
-    getAllUsers,        // <--- Nuevo
-    getUserById,        // <--- Nuevo
-    getUserByUsername,  // <--- Nuevo
-    deleteUser          // <--- Nuevo
+    getAllUsers,       
+    getUserById,       
+    getUserByUsername, 
+    deleteUser,
+    reactivateUser,
+    forceDeleteUser          
 } = require('../controllers/userController');
 
 const { validateCreateUser, validateUpdateUser } = require('../validators/userValidator');
@@ -38,7 +40,13 @@ router.get('/:id', verifyToken, requireAdmin, getUserById);
 // Modificar usuario
 router.put('/:id', verifyToken, requireAdmin, validateUpdateUser, updateUser);
 
-// Eliminar usuario
+// Desactivar 
 router.delete('/:id', verifyToken, requireAdmin, deleteUser);
+
+// Reactivar (PUT)
+router.put('/:id/reactivar', verifyToken, requireAdmin, reactivateUser);
+
+// Eliminar Definitivo (DELETE FORCE)
+router.delete('/:id/force', verifyToken, requireAdmin, forceDeleteUser);
 
 module.exports = router;

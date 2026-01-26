@@ -1,26 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken, requireAdmin } = require('../middleware/auth');
-const { 
-    getRoles, 
-    getAllPermisos, 
-    createRol, 
-    getRolPermissions, 
-    updateRolPermissions, 
-    getStats 
-} = require('../controllers/rolController');
+const rolController = require('../controllers/rolController');
+const { verifyToken } = require('../middleware/auth'); // Tu middleware de seguridad
 
-// Middleware Global para este router: Todo requiere ser Admin
-router.use(verifyToken, requireAdmin);
+// Base URL: /api/roles
 
-// Rutas
-router.get('/', getRoles);                       // Ver roles
-router.post('/', createRol);                     // Crear rol
-router.get('/permisos', getAllPermisos);         // Ver todos los permisos disponibles
-router.get('/stats', getStats);                  // Ver cuántos usuarios hay por rol
+router.get('/', verifyToken, rolController.getRoles); // Listar roles
+router.post('/', verifyToken, rolController.createRol); // Crear rol
+router.delete('/:id', verifyToken, rolController.deleteRol); // Eliminar rol
 
-// Rutas específicas por Rol ID
-router.get('/:id/permisos', getRolPermissions);  // Ver qué permisos tiene el rol X
-router.put('/:id/permisos', updateRolPermissions); // Cambiar permisos del rol X
+// Gestión de Permisos
+router.get('/permisos/catalogo', verifyToken, rolController.getAllPermisos); // Todos los permisos posibles
+router.get('/:id/permisos', verifyToken, rolController.getRolPermisos); // Permisos de un rol
+router.put('/:id/permisos', verifyToken, rolController.updateRolPermisos); // Guardar permisos
 
 module.exports = router;

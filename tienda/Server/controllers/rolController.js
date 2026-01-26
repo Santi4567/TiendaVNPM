@@ -1,16 +1,50 @@
-const RolModel = require('../models/Rol.js');
+const RolModel = require('../models/Rol');
 
-// 1. LISTAR ROLES Y SUS PERMISOS
+// LISTAR ROLES (Con conteo de usuarios para saber si se puede borrar)
 const getRoles = async (req, res) => {
     try {
-        const roles = await RolModel.findAll();
+        const roles = await RolModel.getUsersCountByRole(); // Ya tenías este método en tu modelo anterior
         res.json(roles);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 };
 
-// 2. LISTAR CATÁLOGO DE PERMISOS
+// CREAR ROL
+const createRol = async (req, res) => {
+    try {
+        const { nombre } = req.body;
+        if (!nombre) return res.status(400).json({ error: 'Nombre requerido' });
+        
+        const id = await RolModel.create(nombre);
+        res.json({ success: true, id, message: 'Rol creado' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// ELIMINAR ROL (Con Cláusula de Seguridad)
+const deleteRol = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // 1. CLAUSULA: No se puede borrar si tiene usuarios
+        const tieneUsuarios = await RolModel.hasUsers(id);
+        if (tieneUsuarios) {
+            return res.status(400).json({ 
+                error: 'No se puede eliminar el rol porque hay usuarios asignados a él.' 
+            });
+        }
+
+        // 2. Procerde a eliminar
+        await RolModel.delete(id);
+        res.json({ success: true, message: 'Rol eliminado correctamente' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// OBTENER CATÁLOGO DE PERMISOS
 const getAllPermisos = async (req, res) => {
     try {
         const permisos = await RolModel.findAllPermisos();
@@ -20,21 +54,8 @@ const getAllPermisos = async (req, res) => {
     }
 };
 
-// 3. CREAR NUEVO ROL
-const createRol = async (req, res) => {
-    try {
-        const { nombre } = req.body;
-        if (!nombre) return res.status(400).json({ error: 'Nombre del rol requerido' });
-
-        const id = await RolModel.create(nombre);
-        res.json({ success: true, message: 'Rol creado', id });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
-
-// 4. VER PERMISOS DE UN ROL
-const getRolPermissions = async (req, res) => {
+// OBTENER PERMISOS DE UN ROL
+const getRolPermisos = async (req, res) => {
     try {
         const { id } = req.params;
         const permisos = await RolModel.getPermissionsByRole(id);
@@ -44,45 +65,24 @@ const getRolPermissions = async (req, res) => {
     }
 };
 
-// 5. MODIFICAR PERMISOS DE UN ROL
-const updateRolPermissions = async (req, res) => {
+// ACTUALIZAR PERMISOS DE UN ROL
+const updateRolPermisos = async (req, res) => {
     try {
-        const { id } = req.params; // ID del Rol
-        const { permisos } = req.body; // Array de IDs [1, 5, 8]
+        const { id } = req.params;
+        const { permisosIds } = req.body; // Array de IDs [1, 2, 5]
 
-        // PROTECCIÓN: No permitir quitar permisos al Rol ADMIN (ID 1)
-        // para evitar que el admin se bloquee a sí mismo.
-        if (parseInt(id) === 1) {
-            return res.status(400).json({ error: 'No se pueden modificar los permisos del Super Admin manualmente' });
-        }
-
-        if (!Array.isArray(permisos)) {
-            return res.status(400).json({ error: 'Se requiere un array de IDs de permisos' });
-        }
-
-        await RolModel.updatePermissions(id, permisos);
-        res.json({ success: true, message: 'Permisos del rol actualizados correctamente' });
-
-    } catch (error) {
-        res.status(500).json({ error: 'Error al actualizar permisos' });
-    }
-};
-
-// 6. ESTADÍSTICAS DE USUARIOS POR ROL
-const getStats = async (req, res) => {
-    try {
-        const stats = await RolModel.getUsersCountByRole();
-        res.json(stats);
+        await RolModel.updatePermissions(id, permisosIds);
+        res.json({ success: true, message: 'Permisos actualizados' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 };
 
-module.exports = {
-    getRoles,
-    getAllPermisos,
-    createRol,
-    getRolPermissions,
-    updateRolPermissions,
-    getStats
+module.exports = { 
+    getRoles, 
+    createRol, 
+    deleteRol, 
+    getAllPermisos, 
+    getRolPermisos, 
+    updateRolPermisos 
 };

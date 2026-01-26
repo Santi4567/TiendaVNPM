@@ -150,6 +150,43 @@ const deleteUser = async (req, res) => {
 };
 
 
+// NUEVO: Reactivar
+const reactivateUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await UsuarioModel.reactivate(id);
+        res.status(200).json({ success: true, message: 'Usuario reactivado correctamente' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Eliminar Definitivamente
+const forceDeleteUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // PROTECCIÓN CRÍTICA: Nadie borra al Admin Principal (ID 1)
+        if (parseInt(id) === 1) {
+            return res.status(403).json({ message: 'No se puede eliminar al Super Administrador' });
+        }
+        
+        // Evitar suicidio digital
+        if (parseInt(id) === req.user.userId) {
+            return res.status(400).json({ message: 'No puedes eliminar tu propia cuenta' });
+        }
+
+        await UsuarioModel.hardDelete(id);
+        res.status(200).json({ success: true, message: 'Usuario eliminado permanentemente' });
+    } catch (error) {
+        // Si falla por Foreign Keys (tiene ventas), avisamos
+        if (error.code === 'ER_ROW_IS_REFERENCED_2') {
+             return res.status(400).json({ message: 'No se puede eliminar: El usuario tiene historial de ventas/compras.' });
+        }
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = { 
     createUser, 
     updateUser, 
@@ -157,5 +194,7 @@ module.exports = {
     getAllUsers, 
     getUserById, 
     getUserByUsername, 
-    deleteUser 
+    deleteUser,
+    reactivateUser,
+    forceDeleteUser 
 };

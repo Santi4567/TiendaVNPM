@@ -73,9 +73,9 @@ const RolModel = {
     getUsersCountByRole: async () => {
         try {
             const db = getDB();
-            // Usamos LEFT JOIN para mostrar roles incluso si no tienen usuarios (count 0)
             const sql = `
-                SELECT r.Nombre as Rol, COUNT(u.ID) as TotalUsuarios
+                /* AGREGAMOS r.ID AQUÍ */
+                SELECT r.ID, r.Nombre as Rol, COUNT(u.ID) as TotalUsuarios
                 FROM roles r
                 LEFT JOIN users u ON r.ID = u.ID_Rol
                 GROUP BY r.ID, r.Nombre
@@ -83,6 +83,30 @@ const RolModel = {
             `;
             const [rows] = await db.execute(sql);
             return rows;
+        } catch (error) { throw error; }
+    },
+
+    // Validar si un rol tiene usuarios activos ---
+    hasUsers: async (rolId) => {
+        try {
+            const db = getDB();
+            const [rows] = await db.execute(
+                'SELECT COUNT(*) as total FROM users WHERE ID_Rol = ? AND Activo = 1', 
+                [rolId]
+            );
+            return rows[0].total > 0;
+        } catch (error) { throw error; }
+    },
+
+    // Eliminar Rol ---
+    delete: async (rolId) => {
+        try {
+            const db = getDB();
+            // Primero borramos sus permisos en la tabla intermedia (Integridad referencial)
+            await db.execute('DELETE FROM roles_permisos WHERE ID_Rol = ?', [rolId]);
+            // Luego borramos el rol
+            const [result] = await db.execute('DELETE FROM roles WHERE ID = ?', [rolId]);
+            return result.affectedRows > 0;
         } catch (error) { throw error; }
     }
 };

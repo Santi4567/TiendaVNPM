@@ -201,6 +201,27 @@ const UsuarioModel = {
             throw error;
         }
     },
+
+    // NUEVO: Reactivar Usuario
+    reactivate: async (id) => {
+        try {
+            const db = getDB();
+            const [result] = await db.execute('UPDATE users SET Activo = 1 WHERE ID = ?', [id]);
+            return result.affectedRows > 0;
+        } catch (error) { throw error; }
+    },
+
+    // NUEVO: Eliminar Definitivamente (Hard Delete)
+    hardDelete: async (id) => {
+        try {
+            const db = getDB();
+            // OJO: Si tiene ventas asociadas, esto podría fallar por Foreign Key.
+            // Lo ideal en sistemas reales es anonimizar, pero aquí haremos el delete físico.
+            const [result] = await db.execute('DELETE FROM users WHERE ID = ?', [id]);
+            return result.affectedRows > 0;
+        } catch (error) { throw error; }
+    },
+
     /**
      * Obtiene la lista de nombres de permisos de un usuario
      * Retorna un array de strings: ['view.client', 'add.client']
