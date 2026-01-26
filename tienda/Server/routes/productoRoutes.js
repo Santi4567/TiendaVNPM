@@ -1,8 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const { 
-    getProductos, searchProductos, createProducto, updateProducto, deleteProducto 
+    getProductos, 
+    searchProductos, 
+    createProducto, 
+    updateProducto, 
+    deleteProducto,
+    getAlertasCaducidad,
+    getAlertasStock,
+    actualizarStockRapido,
+    actualizarCaducidadRapida
 } = require('../controllers/productoController');
+
 const { validateProducto } = require('../validators/productoValidator');
 const { verifyToken, requirePermission } = require('../middleware/auth'); 
 
@@ -46,5 +55,15 @@ router.get('/alertas/caducidad',
     requirePermission('view.alerts'), 
     getAlertasCaducidad
 );
+
+router.patch('/:id/stock', 
+    verifyToken, 
+    requirePermission('update.product'),
+    actualizarStockRapido);
+
+router.patch('/:id/caducidad', 
+    verifyToken,
+    requirePermission('update.product'), 
+    actualizarCaducidadRapida);
 
 module.exports = router;

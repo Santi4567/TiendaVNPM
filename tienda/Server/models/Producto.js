@@ -34,6 +34,7 @@ const ProductoModel = {
         } catch (error) { throw error; }
     },
 
+    //Buscador de un prodcuto por Id
     findById: async (id) => {
         try {
             const db = getDB();
@@ -59,6 +60,7 @@ const ProductoModel = {
         } catch (error) { throw error; }
     },
 
+    // Creacion de un producto
     create: async (data) => {
         try {
             const db = getDB();
@@ -81,6 +83,7 @@ const ProductoModel = {
         } catch (error) { throw error; }
     },
 
+    // Actualizacion de Producto 
     update: async (id, data) => {
         try {
             const db = getDB();
@@ -102,6 +105,27 @@ const ProductoModel = {
                 data.fecha_caducidad || null,
                 id
             ]);
+            return result.affectedRows > 0;
+        } catch (error) { throw error; }
+    },
+
+
+    // Actualización rápida de stock
+    updateStock: async (id, nuevoStock) => {
+        try {
+            const db = getDB();
+            const sql = 'UPDATE productos SET Stock = ? WHERE ID = ?';
+            const [result] = await db.execute(sql, [nuevoStock, id]);
+            return result.affectedRows > 0;
+        } catch (error) { throw error; }
+    },
+
+    // Actualización rápida de fecha de caducidad
+    updateExpiry: async (id, nuevaFecha) => {
+        try {
+            const db = getDB();
+            const sql = 'UPDATE productos SET Fecha_Caducidad = ? WHERE ID = ?';
+            const [result] = await db.execute(sql, [nuevaFecha, id]);
             return result.affectedRows > 0;
         } catch (error) { throw error; }
     },
@@ -129,18 +153,17 @@ const ProductoModel = {
             return result.affectedRows > 0;
         } catch (error) { throw error; }
     },
+    
+    
+    // --- SECCIÓN DE ALERTAS ---
 
-    /**
-     * ALERTA 1: Productos con Stock Bajo
-     * Busca productos donde el Stock actual sea menor o igual al Stock Mínimo definido
-     */
-    getLowStockAlerts: async () => {
+    // 1. Alertas de Stock (Stock actual <= Stock Mínimo)
+    getLowStock: async () => {
         try {
             const db = getDB();
             const sql = `
-                SELECT ID, Producto, Stock, Stock_Minimo, Precio_Proveedor
-                FROM productos 
-                WHERE Stock <= Stock_Minimo
+                SELECT * FROM productos 
+                WHERE Stock <= Stock_Minimo 
                 ORDER BY Stock ASC
             `;
             const [rows] = await db.execute(sql);
@@ -148,18 +171,16 @@ const ProductoModel = {
         } catch (error) { throw error; }
     },
 
-    /**
-     * ALERTA 2: Productos Próximos a Caducar
-     * Busca productos que caduquen en los próximos 30 días (ajustable)
-     */
-    getExpiringAlerts: async (dias = 30) => {
+    // 2. Alertas de Caducidad (Vencidos + Próximos 30 días)
+    getExpiringSoon: async (dias = 30) => {
         try {
             const db = getDB();
+            // DATEDIFF devuelve los días de diferencia. Si es negativo, ya venció.
             const sql = `
-                SELECT ID, Producto, Stock, Fecha_Caducidad, DATEDIFF(Fecha_Caducidad, NOW()) as Dias_Restantes
+                SELECT *, DATEDIFF(Fecha_Caducidad, CURDATE()) as DiasRestantes
                 FROM productos 
                 WHERE Fecha_Caducidad IS NOT NULL 
-                  AND Fecha_Caducidad BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL ? DAY)
+                AND Fecha_Caducidad <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
                 ORDER BY Fecha_Caducidad ASC
             `;
             const [rows] = await db.execute(sql, [dias]);

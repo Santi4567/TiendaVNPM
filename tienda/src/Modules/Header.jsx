@@ -53,7 +53,12 @@ const Header = () => {
       path: '/usuarios', 
       // Solo el Admin (rolId 1) o quien tenga permiso de ver roles
       visible: user?.rolId === 1 
-    }
+    },
+    { 
+      name: 'Alertas ⚠️', 
+      path: '/alertas', 
+      visible: hasPermission('view.product') 
+    },
   ];
 
   // 2. Filtramos: Solo dejamos las que tengan visible = true

@@ -11,7 +11,8 @@ import Clientes from './Modules/CRUDClientes.jsx';
 import Productos from './Modules/Productos.jsx';
 import Historico from './Modules/Historico.jsx';
 import Dashboard from './Modules/Dashboard.jsx'; 
-import Usuarios from './Modules/Usuarios.jsx'; // <--- ¡Descomentado!
+import Usuarios from './Modules/Usuarios.jsx'; 
+import Alertas from './Modules/Alertas.jsx'; 
 
 import './App.css';
 
@@ -85,6 +86,15 @@ function App() {
                 <AdminRoute>
                   <Usuarios />  {/* <--- Componente real conectado a la API */}
                 </AdminRoute>
+              } 
+            />
+
+            <Route 
+              path="/alertas" 
+              element={
+                <PrivateRoute permiso="view.product">
+                  <Alertas />
+                </PrivateRoute>
               } 
             />
 

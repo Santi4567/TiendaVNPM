@@ -73,6 +73,40 @@ const updateProducto = async (req, res) => {
     }
 };
 
+//Editar solo el Stock(alertas)
+const actualizarStockRapido = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nuevoStock } = req.body;
+
+        if (nuevoStock === undefined || nuevoStock < 0) {
+            return res.status(400).json({ error: 'Stock inválido' });
+        }
+
+        await ProductoModel.updateStock(id, parseInt(nuevoStock));
+        res.json({ success: true, message: 'Stock actualizado' });
+    } catch (error) {
+        res.status(500).json({ error: 'Error al actualizar stock' });
+    }
+};
+
+// Actualizacion rapida de fecha de caducidad(alertas)
+const actualizarCaducidadRapida = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nuevaFecha } = req.body; // Esperamos formato YYYY-MM-DD
+
+        if (!nuevaFecha) {
+            return res.status(400).json({ error: 'Fecha inválida' });
+        }
+
+        await ProductoModel.updateExpiry(id, nuevaFecha);
+        res.json({ success: true, message: 'Fecha de caducidad actualizada' });
+    } catch (error) {
+        res.status(500).json({ error: 'Error al actualizar fecha' });
+    }
+};
+
 // 5. ELIMINAR
 const deleteProducto = async (req, res) => {
     try {
@@ -97,38 +131,40 @@ const deleteProducto = async (req, res) => {
 };
 
 
-// ALERTA DE STOCK BAJO
+// --- CONTROLADORES DE ALERTAS ---
+
 const getAlertasStock = async (req, res) => {
     try {
-        const productos = await ProductoModel.getLowStockAlerts();
-        res.json({
-            tipo: 'STOCK_BAJO',
-            total: productos.length,
-            data: productos
-        });
+        const productos = await ProductoModel.getLowStock();
+        // Enviamos DIRECTO el array para que el frontend no batalle
+        res.json(productos);
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener alertas de stock' });
     }
 };
 
-// ALERTA DE CADUCIDAD
 const getAlertasCaducidad = async (req, res) => {
     try {
-        // Puedes recibir los días por query param (?dias=60), por defecto 30
+        // Por defecto 30 días, o lo que mandes por ?dias=60
         const dias = req.query.dias || 30;
-        const productos = await ProductoModel.getExpiringAlerts(dias);
+        const productos = await ProductoModel.getExpiringSoon(dias);
         
-        res.json({
-            tipo: 'CADUCIDAD_PRONTA',
-            dias_filtro: dias,
-            total: productos.length,
-            data: productos
-        });
+        res.json(productos);
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener alertas de caducidad' });
     }
 };
 
+
+
 module.exports = {
-    getProductos, searchProductos, createProducto, updateProducto, deleteProducto, getAlertasCaducidad, getAlertasStock
+    getProductos, 
+    searchProductos, 
+    createProducto, 
+    updateProducto, 
+    deleteProducto, 
+    getAlertasCaducidad, 
+    getAlertasStock,
+    actualizarStockRapido,
+    actualizarCaducidadRapida
 };
