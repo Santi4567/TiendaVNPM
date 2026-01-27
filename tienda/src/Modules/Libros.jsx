@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { apiCall } from '../utils/api';
-import ConfirmModal from '../components/ConfirmModal'; // <--- IMPORTAR
+import ConfirmModal from '../components/ConfirmModal'; // <-Componente de Confirmacio Aceptar/Cancelar de operaciones 
 
 const GestionLibros = () => {
   const { hasPermission } = useAuth(); 

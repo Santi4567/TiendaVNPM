@@ -18,6 +18,7 @@ const ventasRoutes = require('./routes/ventaRoutes');
 
 //Libreria
 const libroRoutes = require('./routes/libroRoutes');
+const ventaLibrosRoutes = require('./routes/ventaLibroRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3001; // Usar variable de entorno o 3001 por defecto
@@ -51,6 +52,7 @@ app.use('/api/ventas', ventasRoutes);
 
 //Libreria
 app.use('/api/libreria/libros', libroRoutes);
+app.use('/api/libreria/ventas', ventaLibrosRoutes);
 
 // Ruta de prueba para verificar que el servidor está funcionando
 app.get('/api/health', (req, res) => {

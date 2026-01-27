@@ -13,7 +13,11 @@ import Historico from './Modules/Historico.jsx';
 import Dashboard from './Modules/Dashboard.jsx'; 
 import Usuarios from './Modules/Usuarios.jsx'; 
 import Alertas from './Modules/Alertas.jsx'; 
+
+//Libreria
 import Libros from './Modules/Libros.jsx'; 
+import CajaLibros from './Modules/CajaLibreria.jsx'; 
+import HistorialLibros from './Modules/HistorialLibreria.jsx'; 
 
 //Cuadro de notificaciones 
 import { NotificationProvider } from './context/NotificationContext';
@@ -108,6 +112,24 @@ function App() {
                 element={
                   <PrivateRoute permiso="view.book">
                     <Libros />
+                  </PrivateRoute>
+                } 
+              />
+
+              <Route 
+                path="/libreriacaja" 
+                element={
+                  <PrivateRoute permiso="view.book">
+                    <CajaLibros />
+                  </PrivateRoute>
+                } 
+              />
+
+              <Route 
+                path="/libreriahistorico" 
+                element={
+                  <PrivateRoute permiso="view.book">
+                    <HistorialLibros />
                   </PrivateRoute>
                 } 
               />

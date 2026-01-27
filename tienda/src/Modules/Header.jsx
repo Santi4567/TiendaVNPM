@@ -64,6 +64,16 @@ const Header = () => {
       path: '/libros', 
       visible: hasPermission('view.book') 
     },
+    { 
+      name: ' Caja Libros', 
+      path: '/libreriacaja', 
+      visible: hasPermission('view.book') 
+    },
+    { 
+      name: ' Libros Historico', 
+      path: '/libreriahistorico', 
+      visible: hasPermission('view.book') 
+    },
   ];
 
   // 2. Filtramos: Solo dejamos las que tengan visible = true
