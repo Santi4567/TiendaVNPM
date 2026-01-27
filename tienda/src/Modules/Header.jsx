@@ -55,9 +55,14 @@ const Header = () => {
       visible: user?.rolId === 1 
     },
     { 
-      name: 'Alertas ⚠️', 
+      name: 'Alertas', 
       path: '/alertas', 
       visible: hasPermission('view.product') 
+    },
+    { 
+      name: 'Libros', 
+      path: '/libros', 
+      visible: hasPermission('view.book') 
     },
   ];
 

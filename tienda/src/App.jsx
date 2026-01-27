@@ -13,6 +13,10 @@ import Historico from './Modules/Historico.jsx';
 import Dashboard from './Modules/Dashboard.jsx'; 
 import Usuarios from './Modules/Usuarios.jsx'; 
 import Alertas from './Modules/Alertas.jsx'; 
+import Libros from './Modules/Libros.jsx'; 
+
+//Cuadro de notificaciones 
+import { NotificationProvider } from './context/NotificationContext';
 
 import './App.css';
 
@@ -31,79 +35,90 @@ const AdminRoute = ({ children }) => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
-          {/* Ruta Pública */}
-          <Route path="/login" element={<Login />} />
+      <NotificationProvider>
+        <Router>
+          <Routes>
+            {/* Ruta Pública */}
+            <Route path="/login" element={<Login />} />
 
-          {/* Rutas Protegidas (Requieren Login) */}
-          <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
-            
-            {/* Rutas Generales (Accesibles según lógica interna o permisos base) */}
-            <Route path="/" element={<Caja />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            
-            {/* Rutas con Permisos Específicos */}
-            <Route 
-              path="/clientes" 
-              element={
-                <PrivateRoute permiso="view.client">
-                  <Clientes />
-                </PrivateRoute>
-              } 
-            />
-            <Route 
-              path="/cuentas" 
-              element={
-                <PrivateRoute permiso="view.debt">
-                  <Cuentas />
-                </PrivateRoute>
-              } 
-            />
-            
-            <Route 
-              path="/productos" 
-              element={
-                <PrivateRoute permiso="view.product">
-                  <Productos />
-                </PrivateRoute>
-              } 
-            />
-            
-            <Route 
-              path="/historico" 
-              element={
-                <PrivateRoute permiso="view.report">
-                  <Historico />
-                </PrivateRoute>
-              } 
-            />
+            {/* Rutas Protegidas (Requieren Login) */}
+            <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
+              
+              {/* Rutas Generales (Accesibles según lógica interna o permisos base) */}
+              <Route path="/" element={<Caja />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              
+              {/* Rutas con Permisos Específicos */}
+              <Route 
+                path="/clientes" 
+                element={
+                  <PrivateRoute permiso="view.client">
+                    <Clientes />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/cuentas" 
+                element={
+                  <PrivateRoute permiso="view.debt">
+                    <Cuentas />
+                  </PrivateRoute>
+                } 
+              />
+              
+              <Route 
+                path="/productos" 
+                element={
+                  <PrivateRoute permiso="view.product">
+                    <Productos />
+                  </PrivateRoute>
+                } 
+              />
+              
+              <Route 
+                path="/historico" 
+                element={
+                  <PrivateRoute permiso="view.report">
+                    <Historico />
+                  </PrivateRoute>
+                } 
+              />
 
-            {/* --- RUTA EXCLUSIVA DE ADMIN --- */}
-            <Route 
-              path="/usuarios" 
-              element={
-                <AdminRoute>
-                  <Usuarios />  {/* <--- Componente real conectado a la API */}
-                </AdminRoute>
-              } 
-            />
+              {/* --- RUTA EXCLUSIVA DE ADMIN --- */}
+              <Route 
+                path="/usuarios" 
+                element={
+                  <AdminRoute>
+                    <Usuarios />  {/* <--- Componente real conectado a la API */}
+                  </AdminRoute>
+                } 
+              />
 
-            <Route 
-              path="/alertas" 
-              element={
-                <PrivateRoute permiso="view.product">
-                  <Alertas />
-                </PrivateRoute>
-              } 
-            />
+              <Route 
+                path="/alertas" 
+                element={
+                  <PrivateRoute permiso="view.product">
+                    <Alertas />
+                  </PrivateRoute>
+                } 
+              />
 
-          </Route>
-          
-          {/* Redirección por defecto */}
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </Router>
+              <Route 
+                path="/libros" 
+                element={
+                  <PrivateRoute permiso="view.book">
+                    <Libros />
+                  </PrivateRoute>
+                } 
+              />
+
+            </Route>
+            
+            {/* Redirección por defecto */}
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </Router>
+      </NotificationProvider>
     </AuthProvider>
   );
 }
