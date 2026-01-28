@@ -15,12 +15,6 @@ const Header = () => {
   // 1. Definimos TODAS las opciones posibles
   const allNavItems = [
     { 
-      name: 'Dashboard', 
-      path: '/dashboard', 
-      // Si quieres que todos vean el dashboard, pon 'public: true' o una validación simple
-      visible: true 
-    },
-    { 
       name: 'Caja', 
       path: '/', 
       // Visible si puede crear ventas
@@ -74,6 +68,11 @@ const Header = () => {
       path: '/libreriahistorico', 
       visible: hasPermission('view.book') 
     },
+    { 
+      name: 'Almacen', 
+      path: '/almacen', 
+      visible: hasPermission('view.cupboard') 
+    },
   ];
 
   // 2. Filtramos: Solo dejamos las que tengan visible = true
@@ -90,7 +89,7 @@ const Header = () => {
               to="/"
               className="text-2xl font-bold text-blue-600 hover:text-blue-800 transition-colors"
             >
-              Tienda VNPM
+             Gestion VNPM
             </NavLink>
           </div>
 

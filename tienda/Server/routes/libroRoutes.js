@@ -16,28 +16,33 @@ const { validateCreateLibro, validateUpdateLibro } = require('../validators/libr
 //traer todos los libros
 router.get('/todos', 
     verifyToken, 
+    requirePermission('view.book'), 
     getTodos);
 
 //Buscar libro
 router.get('/buscar', 
     verifyToken, 
+    requirePermission('view.book'), 
     buscarLibros);
 
 //agregar un nuevo libro
 router.post('/agregar', 
-    validateCreateLibro,
     verifyToken, 
+    requirePermission('view.book'), 
+    validateCreateLibro,
     crearLibro);
 
 //Editar libro
 router.put('/editar/:id', 
     verifyToken, 
+    requirePermission('view.book'), 
     validateUpdateLibro,
     editarLibro);
 
 //Eliminar un libro
 router.delete('/eliminar/:id', 
     verifyToken, 
+    requirePermission('view.book'), 
     eliminarLibro);
 
 module.exports = router;

@@ -64,10 +64,6 @@ const crearVenta = async (req, res) => {
     }
 };
 
-
-
-// ... imports
-
 const getHistorial = async (req, res) => {
     try {
         const ventas = await VentaLibroModel.findAll();
@@ -83,21 +79,70 @@ const getDetallesVenta = async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 };
 
+//abonar dinero de un apartado
 const abonarVenta = async (req, res) => {
     try {
         const { id } = req.params;
         const { monto } = req.body;
+        const userId = req.user.userId;
+
+        // Buscar nombre del cajero
+        const cajero = await UsuarioModel.findById(userId);
+        const nombreCajero = cajero.Nombre_Completo || cajero.Usuario;
         
         if (!monto || monto <= 0) return res.status(400).json({ error: 'Monto inválido' });
 
-        const result = await VentaLibroModel.addAbono(id, parseFloat(monto));
+        // Llamar al modelo con los datos del usuario
+        const result = await VentaLibroModel.addAbono(id, parseFloat(monto), userId, nombreCajero);
         
         res.json({ 
             success: true, 
-            message: result.liquidado ? '¡Deuda liquidada!' : 'Abono registrado correctamente',
+            message: result.liquidado ? '¡Deuda liquidada completamente!' : 'Abono registrado correctamente',
             liquidado: result.liquidado
         });
+    } catch (error) { 
+        // Si el modelo lanza error de validación (monto excede), lo cachamos aquí
+        res.status(400).json({ error: error.message }); 
+    }
+};
+
+// Traer todos los abonos 
+const getAbonosVenta = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const abonos = await VentaLibroModel.getAbonos(id);
+        res.json(abonos);
     } catch (error) { res.status(500).json({ error: error.message }); }
 };
 
-module.exports = { crearVenta, getHistorial, getDetallesVenta, abonarVenta };
+const cancelarVenta = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.userId;
+        // Aquí podrías buscar el nombre del usuario si quieres guardarlo en un log de auditoría
+        
+        await VentaLibroModel.cancel(id, userId, 'Admin'); // Simplificado
+        
+        res.json({ success: true, message: 'Venta cancelada y stock restaurado' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+const getHistorialGlobal = async (req, res) => {
+    try {
+        // Extraer filtros de la URL: ?fechaInicio=2024-01-01&busqueda=perez...
+        const { fechaInicio, fechaFin, tipo, busqueda } = req.query;
+        
+        const historial = await AlacenaModel.getGlobalHistory({
+            fechaInicio, 
+            fechaFin, 
+            tipo, 
+            busqueda
+        });
+        
+        res.json(historial);
+    } catch (error) { res.status(500).json({ error: error.message }); }
+};
+
+module.exports = { crearVenta, getHistorial, getDetallesVenta, abonarVenta, getAbonosVenta, cancelarVenta,getHistorialGlobal };

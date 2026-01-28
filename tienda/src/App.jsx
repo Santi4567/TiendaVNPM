@@ -10,14 +10,18 @@ import Caja from './Modules/Caja.jsx';
 import Clientes from './Modules/CRUDClientes.jsx';
 import Productos from './Modules/Productos.jsx';
 import Historico from './Modules/Historico.jsx';
-import Dashboard from './Modules/Dashboard.jsx'; 
-import Usuarios from './Modules/Usuarios.jsx'; 
 import Alertas from './Modules/Alertas.jsx'; 
+
+//Administracion
+import Usuarios from './Modules/Usuarios.jsx'; 
 
 //Libreria
 import Libros from './Modules/Libros.jsx'; 
 import CajaLibros from './Modules/CajaLibreria.jsx'; 
 import HistorialLibros from './Modules/HistorialLibreria.jsx'; 
+
+//
+import Almacen from './Modules/Alacena.jsx'; 
 
 //Cuadro de notificaciones 
 import { NotificationProvider } from './context/NotificationContext';
@@ -50,7 +54,6 @@ function App() {
               
               {/* Rutas Generales (Accesibles según lógica interna o permisos base) */}
               <Route path="/" element={<Caja />} />
-              <Route path="/dashboard" element={<Dashboard />} />
               
               {/* Rutas con Permisos Específicos */}
               <Route 
@@ -130,6 +133,14 @@ function App() {
                 element={
                   <PrivateRoute permiso="view.book">
                     <HistorialLibros />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/almacen" 
+                element={
+                  <PrivateRoute permiso="view.book">
+                    <Almacen />
                   </PrivateRoute>
                 } 
               />
