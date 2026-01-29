@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext'; // <--- 1. Importar Hook
 import { apiCall } from '../utils/api';
+import ConfirmModal from '../components/ConfirmModal'; // <--- 2. Importar Modal
 
 const GestionProductos = () => {
-  const { hasPermission } = useAuth(); // Hook de permisos
+  const { hasPermission } = useAuth();
+  const { notify } = useNotification(); // <--- 3. Usar Hook
 
   // Estados principales
   const [productos, setProductos] = useState([]);
@@ -18,39 +21,43 @@ const GestionProductos = () => {
   const [modoEdicion, setModoEdicion] = useState(false);
   const [productoEditando, setProductoEditando] = useState(null);
   
-  // Estados del formulario (Adaptado al Backend: stock, stock_minimo)
+  // Estados del formulario
   const [formData, setFormData] = useState({
     producto: '',
     precio_proveedor: '',
-    stock: '',         // Antes unidades
-    stock_minimo: 5,   // Nuevo campo del backend
+    stock: '',         
+    stock_minimo: 5,   
     precio_publico: '',
     codigo: '',
-    fecha_caducidad: '' // Nuevo campo del backend
+    fecha_caducidad: '' 
   });
   
   // Estados para selección
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
   
-  // Estados para mensajes
-  const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
+  // Estado para el Modal de Confirmación
+  const [confirmModal, setConfirmModal] = useState({ 
+      isOpen: false, 
+      action: null, 
+      title: '', 
+      message: '', 
+      tipo: 'danger' 
+  });
 
   // Cargar todos los productos
   const cargarProductos = async () => {
-    // Si no tiene permiso de ver, no hacemos la petición
     if (!hasPermission('view.product')) return;
 
     setCargando(true);
     try {
-      const response = await apiCall('/api/productos/todos'); // Usamos apiCall
-      // apiCall devuelve { status, data }. Si es array directo, viene en data.
+      const response = await apiCall('/api/productos/todos');
       const data = response.data; 
       
       setProductos(data);
       setProductosFiltrados(data);
     } catch (error) {
       console.error('Error cargando productos:', error);
-      mostrarMensaje('error', 'Error al cargar los productos');
+      notify('Error al cargar los productos', 'error');
     } finally {
       setCargando(false);
     }
@@ -73,13 +80,6 @@ const GestionProductos = () => {
   useEffect(() => {
     cargarProductos();
   }, []);
-
-  const mostrarMensaje = (tipo, texto) => {
-    setMensaje({ tipo, texto });
-    setTimeout(() => {
-      setMensaje({ tipo: '', texto: '' });
-    }, 4000);
-  };
 
   const limpiarFormulario = () => {
     setFormData({
@@ -104,7 +104,6 @@ const GestionProductos = () => {
   const abrirFormularioEditar = (producto) => {
     setMostrarFormulario(true);
     setModoEdicion(true);
-    // Mapeamos los datos que vienen del backend al formulario
     setFormData({
       producto: producto.Producto,
       precio_proveedor: producto.Precio_Proveedor || '',
@@ -137,11 +136,11 @@ const GestionProductos = () => {
     e.preventDefault();
     
     if (!formData.producto.trim()) {
-      mostrarMensaje('error', 'El nombre del producto es requerido');
+      notify('El nombre del producto es requerido', 'error');
       return;
     }
     if (!formData.precio_publico || parseFloat(formData.precio_publico) <= 0) {
-      mostrarMensaje('error', 'El precio público es requerido');
+      notify('El precio público es requerido', 'error');
       return;
     }
 
@@ -152,7 +151,6 @@ const GestionProductos = () => {
       
       const method = modoEdicion ? 'PUT' : 'POST';
 
-      // Preparamos el payload tal como lo espera el Backend (ProductoController)
       const payload = {
         producto: formData.producto.trim(),
         precio_proveedor: formData.precio_proveedor ? parseFloat(formData.precio_proveedor) : null,
@@ -166,35 +164,44 @@ const GestionProductos = () => {
       const response = await apiCall(endpoint, method, payload);
 
       if (response.data.success) {
-        mostrarMensaje('success', response.data.mensaje);
+        notify(response.data.mensaje, 'success');
         cerrarFormulario();
         cargarProductos();
       } else {
-        mostrarMensaje('error', response.data.error || 'Error al guardar');
+        notify(response.data.error || 'Error al guardar', 'error');
       }
     } catch (error) {
       console.error('Error guardando:', error);
-      mostrarMensaje('error', 'Error de conexión al guardar producto');
+      notify('Error de conexión al guardar producto', 'error');
     }
   };
 
-  const eliminarProducto = async (producto) => {
-    const confirmar = window.confirm(`¿Eliminar "${producto.Producto}"? Esta acción es irreversible.`);
-    if (!confirmar) return;
+  // --- ELIMINAR CON MODAL ---
+  const solicitarEliminar = (producto) => {
+    setConfirmModal({
+        isOpen: true,
+        title: '¿Eliminar Producto?',
+        message: `¿Estás seguro de eliminar "${producto.Producto}"? Esta acción no se puede deshacer.`,
+        tipo: 'danger',
+        action: () => ejecutarEliminar(producto.ID)
+    });
+  };
 
+  const ejecutarEliminar = async (id) => {
     try {
-      const response = await apiCall(`/api/productos/eliminar/${producto.ID}`, 'DELETE');
+      const response = await apiCall(`/api/productos/eliminar/${id}`, 'DELETE');
 
       if (response.data.success) {
-        mostrarMensaje('success', response.data.mensaje);
+        notify(response.data.mensaje, 'success');
         setProductoSeleccionado(null);
         cargarProductos();
       } else {
-        // Aquí mostramos el error del backend (ej: "No se puede eliminar porque tiene ventas")
-        mostrarMensaje('error', response.data.error);
+        notify(response.data.error, 'error');
       }
     } catch (error) {
-      mostrarMensaje('error', 'Error de conexión al eliminar');
+      notify('Error de conexión al eliminar', 'error');
+    } finally {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
     }
   };
 
@@ -205,7 +212,6 @@ const GestionProductos = () => {
 
   // ---------------- RENDER ----------------
   
-  // PROTECCIÓN GENERAL: Si no tiene permiso de ver, mostramos mensaje o nada
   if (!hasPermission('view.product')) {
     return (
         <div className="p-8 text-center text-red-500 bg-red-50 rounded-lg m-4 border border-red-200">
@@ -222,20 +228,9 @@ const GestionProductos = () => {
           <h1 className="text-3xl font-bold text-gray-900">Gestión de Productos</h1>
         </div>
 
-        {/* Mensajes Flotantes */}
-        {mensaje.texto && (
-          <div className={`mb-4 p-4 rounded-lg ${
-            mensaje.tipo === 'success' 
-              ? 'bg-green-50 text-green-700 border border-green-200' 
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}>
-            {mensaje.texto}
-          </div>
-        )}
-
         {/* --- FORMULARIO (Agregar/Editar) --- */}
         {mostrarFormulario ? (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          <div className="bg-white rounded-lg shadow-md p-6 mb-8 animate-fade-in">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
               {modoEdicion ? 'Editar Producto' : 'Agregar Nuevo Producto'}
             </h2>
@@ -343,7 +338,7 @@ const GestionProductos = () => {
           <>
             {/* --- BARRA SUPERIOR (Buscador y Agregar) --- */}
             <div className="mb-6 flex flex-col sm:flex-row gap-4">
-              {/* Buscador: Visible si tienes view.product (ya validado arriba) */}
+              {/* Buscador */}
               <div className="flex-1 relative">
                 <input
                   type="text"
@@ -353,14 +348,13 @@ const GestionProductos = () => {
                   className="w-full px-4 py-3 pl-12 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center">
-                    {/* Icono Lupa */}
                     <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                 </div>
               </div>
               
-              {/* Botón AGREGAR: Solo si tiene permiso add.product */}
+              {/* Botón AGREGAR */}
               {hasPermission('add.product') && (
                 <button
                   onClick={abrirFormularioAgregar}
@@ -382,7 +376,7 @@ const GestionProductos = () => {
                   </div>
                   
                   <div className="flex space-x-3">
-                    {/* Botón EDITAR: Solo si tiene update.product */}
+                    {/* Botón EDITAR */}
                     {hasPermission('update.product') && (
                         <button
                         onClick={() => abrirFormularioEditar(productoSeleccionado)}
@@ -392,10 +386,10 @@ const GestionProductos = () => {
                         </button>
                     )}
 
-                    {/* Botón ELIMINAR: Solo si tiene delete.product */}
+                    {/* Botón ELIMINAR (Con Modal) */}
                     {hasPermission('delete.product') && (
                         <button
-                        onClick={() => eliminarProducto(productoSeleccionado)}
+                        onClick={() => solicitarEliminar(productoSeleccionado)} // <--- Acción con Modal
                         className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium flex items-center gap-2"
                         >
                         Eliminar
@@ -413,14 +407,16 @@ const GestionProductos = () => {
               </div>
             )}
 
-            {/* --- TABLA DE PRODUCTOS --- */}
+            {/* --- TABLA DE PRODUCTOS (CON SCROLL) --- */}
             <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
               {cargando ? (
                 <div className="p-10 text-center text-blue-500">Cargando catálogo...</div>
               ) : (
-                <div className="overflow-x-auto">
+                // Scroll container: max-h-[600px] y overflow-auto (X y Y)
+                <div className="max-h-[600px] overflow-auto">
                   <table className="w-full text-sm text-left">
-                    <thead className="bg-gray-100 text-gray-600 uppercase font-bold text-xs">
+                    {/* Header sticky para que no se pierda al hacer scroll */}
+                    <thead className="bg-gray-100 text-gray-600 uppercase font-bold text-xs sticky top-0 z-10">
                       <tr>
                         <th className="px-4 py-3">Producto</th>
                         <th className="px-4 py-3">Código</th>
@@ -482,6 +478,16 @@ const GestionProductos = () => {
           </>
         )}
       </div>
+
+      {/* COMPONENTE MODAL DE CONFIRMACIÓN */}
+      <ConfirmModal 
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmModal.action}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          tipo={confirmModal.tipo}
+      />
     </div>
   );
 };

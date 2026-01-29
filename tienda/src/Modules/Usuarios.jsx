@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext'; // Si usas permisos aquí, agrégalo
 import { apiCall } from '../utils/api';
+import { useNotification } from '../context/NotificationContext'; // <--- 1. Hook Notificaciones
+import ConfirmModal from '../components/ConfirmModal'; // <--- 2. Componente Modal
 
 const Usuarios = () => {
+    const { user } = useAuth();
+  const { notify } = useNotification(); // <--- 3. Usar Hook
   const [activeTab, setActiveTab] = useState('usuarios');
   
   // Estados de Datos
@@ -10,7 +15,7 @@ const Usuarios = () => {
   const [permisosCatalogo, setPermisosCatalogo] = useState([]);
   const [busquedaUser, setBusquedaUser] = useState('');
   
-  // Estados de Modales
+  // Estados de Modales Formularios
   const [modalUsuarioOpen, setModalUsuarioOpen] = useState(false);
   const [usuarioEditando, setUsuarioEditando] = useState(null);
   const [formDataUser, setFormDataUser] = useState({ 
@@ -18,11 +23,20 @@ const Usuarios = () => {
   });
 
   const [modalRolOpen, setModalRolOpen] = useState(false);
-  const [formDataRol, setFormDataRol] = useState({ Nombre: '' });
+  const [formDataRol, setFormDataRol] = useState({ nombre: '' }); // Nota: 'nombre' en minúscula
 
   const [modalPermisosOpen, setModalPermisosOpen] = useState(false);
   const [rolSeleccionado, setRolSeleccionado] = useState(null);
   const [permisosSeleccionados, setPermisosSeleccionados] = useState([]); 
+
+  // Estado para Modal de Confirmación (Acciones Peligrosas)
+  const [confirmModal, setConfirmModal] = useState({ 
+      isOpen: false, 
+      action: null, 
+      title: '', 
+      message: '', 
+      tipo: 'danger' 
+  });
 
   // --- CARGAS ---
   useEffect(() => {
@@ -36,59 +50,91 @@ const Usuarios = () => {
         const res = await apiCall('/api/users');
         const lista = res.data.data ? res.data.data : (Array.isArray(res.data) ? res.data : []);
         setUsuarios(lista);
-    } catch (error) { console.error(error); }
+    } catch (error) { notify('Error cargando usuarios', 'error'); }
   };
 
   const cargarRoles = async () => {
     try {
         const res = await apiCall('/api/roles');
         setRoles(res.data || []);
-    } catch (error) { console.error(error); }
+    } catch (error) { notify('Error cargando roles', 'error'); }
   };
 
   const cargarCatalogoPermisos = async () => {
     try {
         const res = await apiCall('/api/roles/permisos/catalogo');
         setPermisosCatalogo(res.data || []);
-    } catch (error) { console.error(error); }
+    } catch (error) { notify('Error cargando permisos', 'error'); }
   };
 
-  // --- ACCIONES DE USUARIO ---
+  // --- ACCIONES DE USUARIO (CON MODAL) ---
   
   // 1. Desactivar (Soft Delete)
-  const desactivarUsuario = async (id) => {
-      if(!window.confirm('¿Desactivar acceso a este usuario?')) return;
+  const solicitarDesactivarUsuario = (usuario) => {
+      setConfirmModal({
+          isOpen: true,
+          title: '¿Desactivar Usuario?',
+          message: `¿Estás seguro de desactivar el acceso a "${usuario.Usuario}"?`,
+          tipo: 'danger',
+          action: () => ejecutarDesactivarUsuario(usuario.ID)
+      });
+  };
+
+  const ejecutarDesactivarUsuario = async (id) => {
       try {
           await apiCall(`/api/users/${id}`, 'DELETE');
+          notify('Usuario desactivado correctamente', 'success');
           cargarUsuarios();
-      } catch (error) { alert('Error al desactivar'); }
+      } catch (error) { notify('Error al desactivar usuario', 'error'); }
+      finally { setConfirmModal(prev => ({ ...prev, isOpen: false })); }
   };
 
   // 2. Reactivar
-  const reactivarUsuario = async (id) => {
-      if(!window.confirm('¿Reactivar acceso a este usuario?')) return;
+  const solicitarReactivarUsuario = (usuario) => {
+      setConfirmModal({
+          isOpen: true,
+          title: '¿Reactivar Usuario?',
+          message: `¿Deseas reactivar el acceso para "${usuario.Usuario}"?`,
+          tipo: 'success', // Verde porque es positivo
+          action: () => ejecutarReactivarUsuario(usuario.ID)
+      });
+  };
+
+  const ejecutarReactivarUsuario = async (id) => {
       try {
           await apiCall(`/api/users/${id}/reactivar`, 'PUT');
+          notify('Usuario reactivado exitosamente', 'success');
           cargarUsuarios();
-      } catch (error) { alert('Error al reactivar'); }
+      } catch (error) { notify('Error al reactivar usuario', 'error'); }
+      finally { setConfirmModal(prev => ({ ...prev, isOpen: false })); }
   };
 
   // 3. Eliminar Definitivamente (Hard Delete)
-  const eliminarDefinitivo = async (id) => {
-      if(!window.confirm('⚠️ ¿ELIMINAR DEFINITIVAMENTE?\nEsta acción borrará al usuario de la base de datos y no se puede deshacer.')) return;
+  const solicitarEliminarDefinitivo = (usuario) => {
+      setConfirmModal({
+          isOpen: true,
+          title: '⚠️ ¿ELIMINAR DEFINITIVAMENTE?',
+          message: `Estás a punto de borrar FÍSICAMENTE a "${usuario.Usuario}". Esta acción NO se puede deshacer y borrará su historial.`,
+          tipo: 'danger',
+          action: () => ejecutarEliminarDefinitivo(usuario.ID)
+      });
+  };
+
+  const ejecutarEliminarDefinitivo = async (id) => {
       try {
           const res = await apiCall(`/api/users/${id}/force`, 'DELETE');
           if (res.data.error) {
-              alert(res.data.error || 'No se pudo eliminar (probablemente tiene ventas asociadas).');
+              notify(res.data.error, 'error');
           } else {
+              notify('Usuario eliminado permanentemente', 'success');
               cargarUsuarios();
           }
       } catch (error) { 
-        alert('Error: Es probable que este usuario tenga historial de ventas.'); 
-      }
+        notify('Error: Probablemente el usuario tiene ventas asociadas.', 'error'); 
+      } finally { setConfirmModal(prev => ({ ...prev, isOpen: false })); }
   };
 
-  // --- GESTIÓN FORMULARIOS (Igual que antes) ---
+  // --- GESTIÓN FORMULARIOS ---
   const abrirModalUsuario = (user = null) => {
     if (user) {
         setUsuarioEditando(user);
@@ -105,18 +151,43 @@ const Usuarios = () => {
     setModalUsuarioOpen(true);
   };
 
-  const guardarUsuario = async (e) => {
+const guardarUsuario = async (e) => {
     e.preventDefault();
+    
+    // Validación Frontend Rápida (Opcional pero recomendada)
+    if (!usuarioEditando && formDataUser.Passwd.length < 5) {
+        return notify('La contraseña es muy corta (mínimo 5 caracteres).', 'warning');
+    }
+
     try {
+        let response;
         if (usuarioEditando) {
-            await apiCall(`/api/users/${usuarioEditando.ID}`, 'PUT', formDataUser);
+            response = await apiCall(`/api/users/${usuarioEditando.ID}`, 'PUT', formDataUser);
         } else {
-            await apiCall('/api/users', 'POST', formDataUser);
+            response = await apiCall('/api/users', 'POST', formDataUser);
         }
-        setModalUsuarioOpen(false);
-        cargarUsuarios();
-        cargarRoles(); 
-    } catch (error) { alert('Error al guardar'); }
+
+        // VERIFICACIÓN ESTRICTA DE LA RESPUESTA
+        if (response.data && response.data.success) {
+            // ÉXITO
+            notify(response.data.message || 'Operación exitosa', 'success');
+            setModalUsuarioOpen(false); // Solo cerramos si todo salió bien
+            setFormDataUser({ Usuario: '', Nombre_Completo: '', Passwd: '', ID_Rol: '' }); // Limpiar
+            cargarUsuarios();
+            cargarRoles(); 
+        } else {
+            // ERROR LÓGICO DEL BACKEND (Ej: "Usuario ya existe")
+            // No cerramos el modal, mostramos el error
+            const errorMsg = response.data.message || response.data.error || 'Error desconocido del servidor';
+            notify(errorMsg, 'error');
+        }
+
+    } catch (error) { 
+        // ERROR DE RED O STATUS 400/500 QUE LANZA EXCEPCIÓN
+        console.error(error);
+        const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Error de conexión al guardar';
+        notify(errorMsg, 'error');
+    }
   };
 
   // --- GESTIÓN ROLES ---
@@ -125,23 +196,36 @@ const Usuarios = () => {
       try {
           await apiCall('/api/roles', 'POST', formDataRol);
           setModalRolOpen(false);
-          setFormDataRol({ Nombre: '' });
+          setFormDataRol({ nombre: '' });
           cargarRoles();
-      } catch (error) { alert('Error al crear rol'); }
+          notify('Rol creado correctamente', 'success');
+      } catch (error) { notify('Error al crear rol', 'error'); }
   };
 
-  const eliminarRol = async (rol) => {
-      if (rol.TotalUsuarios > 0) return alert('No puedes eliminar un rol con usuarios activos.');
-      if(!window.confirm(`¿Eliminar rol "${rol.Rol}"?`)) return;
+  const solicitarEliminarRol = (rol) => {
+      if (rol.TotalUsuarios > 0) return notify(`No puedes eliminar "${rol.Rol}" porque tiene usuarios asignados.`, 'error');
+      
+      setConfirmModal({
+          isOpen: true,
+          title: '¿Eliminar Rol?',
+          message: `¿Estás seguro de eliminar el rol "${rol.Rol}"?`,
+          tipo: 'danger',
+          action: () => ejecutarEliminarRol(rol.ID)
+      });
+  };
+
+  const ejecutarEliminarRol = async (id) => {
       try {
-          await apiCall(`/api/roles/${rol.ID}`, 'DELETE');
+          await apiCall(`/api/roles/${id}`, 'DELETE');
           cargarRoles();
-      } catch (error) { alert('Error al eliminar rol'); }
+          notify('Rol eliminado correctamente', 'success');
+      } catch (error) { notify('Error al eliminar rol', 'error'); }
+      finally { setConfirmModal(prev => ({ ...prev, isOpen: false })); }
   };
 
+  // --- GESTIÓN PERMISOS ---
   const abrirConfigPermisos = async (rol) => {
-      // PROTECCIÓN EXTRA FRONTEND: Admin no se edita
-      if (rol.ID === 1) return; 
+      if (rol.ID === 1) return notify('El rol de Super Admin no se puede editar', 'info');
 
       setRolSeleccionado(rol);
       const res = await apiCall(`/api/roles/${rol.ID}/permisos`);
@@ -158,8 +242,8 @@ const Usuarios = () => {
       try {
           await apiCall(`/api/roles/${rolSeleccionado.ID}/permisos`, 'PUT', { permisosIds: permisosSeleccionados });
           setModalPermisosOpen(false);
-          alert('Permisos actualizados');
-      } catch (error) { alert('Error guardando permisos'); }
+          notify('Permisos actualizados correctamente', 'success');
+      } catch (error) { notify('Error guardando permisos', 'error'); }
   };
 
   return (
@@ -210,24 +294,35 @@ const Usuarios = () => {
                                       }
                                   </td>
                                   <td className="p-3 text-right">
-                                      {u.Activo === 1 ? (
-                                        // ACCIONES SI ESTÁ ACTIVO
-                                        <div className="space-x-2">
-                                            <button onClick={() => abrirModalUsuario(u)} className="text-blue-600 hover:text-blue-800 font-medium">Editar</button>
-                                            <button onClick={() => desactivarUsuario(u.ID)} className="text-orange-500 hover:text-orange-700 font-medium">Desactivar</button>
-                                        </div>
-                                      ) : (
-                                        // ACCIONES SI ESTÁ INACTIVO
-                                        <div className="space-x-3">
-                                            <button onClick={() => reactivarUsuario(u.ID)} className="text-green-600 hover:text-green-800 font-bold text-sm">
-                                                Reactivar
-                                            </button>
-                                            <button onClick={() => eliminarDefinitivo(u.ID)} className="text-red-600 hover:text-red-900 font-bold text-sm bg-red-100 px-2 py-1 rounded">
-                                                Eliminar Definitivamente
-                                            </button>
-                                        </div>
-                                      )}
-                                  </td>
+                                    {/* --- REGLA: No mostrar acciones destructivas para el Super Admin (ID 1) --- */}
+                                    {u.ID === 1 ? (
+                                        <span className="text-xs text-gray-400 italic">Protegido</span>
+                                    ) : (
+                                        <>
+                                            {/* Si está ACTIVO */}
+                                            {u.Activo === 1 ? (
+                                            <div className="space-x-2">
+                                                <button onClick={() => abrirModalUsuario(u)} className="...">Editar</button>
+                                                
+                                                {/* --- REGLA: No mostrar botón "Desactivar" si es el mismo usuario logueado --- */}
+                                                {u.ID !== user.id && (
+                                                    <button onClick={() => solicitarDesactivarUsuario(u)} className="...">Desactivar</button>
+                                                )}
+                                            </div>
+                                            ) : (
+                                            // Si está INACTIVO
+                                            <div className="space-x-3">
+                                                <button onClick={() => solicitarReactivarUsuario(u)} className="...">Reactivar</button>
+                                                
+                                                {/* --- REGLA: Eliminar Definitivo tampoco para uno mismo (por si acaso) --- */}
+                                                {u.ID !== user.id && (
+                                                    <button onClick={() => solicitarEliminarDefinitivo(u)} className="...">Eliminar Definitivamente</button>
+                                                )}
+                                            </div>
+                                            )}
+                                        </>
+                                    )}
+                                </td>
                               </tr>
                           ))}
                       </tbody>
@@ -256,8 +351,10 @@ const Usuarios = () => {
                                   </h3>
                                   <p className="text-sm text-gray-500">{rol.TotalUsuarios} usuarios asignados</p>
                               </div>
+                              
                               {rol.ID !== 1 && (
-                                  <button onClick={() => eliminarRol(rol)} className="text-gray-400 hover:text-red-500 transition-colors">✕</button>
+                                  /* ELIMINAR ROL CON MODAL */
+                                  <button onClick={() => solicitarEliminarRol(rol)} className="text-gray-400 hover:text-red-500 transition-colors">✕</button>
                               )}
                           </div>
                           
@@ -280,45 +377,104 @@ const Usuarios = () => {
           </div>
       )}
 
-      {/* MODALES (Usuario, Rol, Permisos) --- MANTIENEN EL CÓDIGO ANTERIOR --- */}
-      {/* ... Solo asegúrate de incluir el modal de usuario con el fix del parseInt(ID_Rol) ... */}
+{/* MODAL USUARIO */}
       {modalUsuarioOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white p-6 rounded-lg w-96 shadow-xl">
-                  <h2 className="text-xl font-bold mb-4">{usuarioEditando ? 'Editar' : 'Nuevo'} Usuario</h2>
-                  <form onSubmit={guardarUsuario} className="space-y-4">
-                      {/* Inputs... */}
-                      <input type="text" placeholder="Usuario" required className="w-full border p-2 rounded" value={formDataUser.Usuario} onChange={e => setFormDataUser({...formDataUser, Usuario: e.target.value})} />
-                      <input type="text" placeholder="Nombre" required className="w-full border p-2 rounded" value={formDataUser.Nombre_Completo} onChange={e => setFormDataUser({...formDataUser, Nombre_Completo: e.target.value})} />
-                      <input type="password" placeholder={usuarioEditando ? "Dejar en blanco para mantener" : "Contraseña"} required={!usuarioEditando} className="w-full border p-2 rounded" value={formDataUser.Passwd} onChange={e => setFormDataUser({...formDataUser, Passwd: e.target.value})} />
-                      
-                      <select className="w-full border p-2 rounded" required value={formDataUser.ID_Rol} onChange={e => setFormDataUser({...formDataUser, ID_Rol: parseInt(e.target.value)})}>
-                          <option value="">Seleccione Rol</option>
-                          {roles.map(r => <option key={r.ID} value={r.ID}>{r.Rol}</option>)}
-                      </select>
+          <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              {/* CAMBIO DE TAMAÑO AQUÍ: w-full max-w-lg */}
+              <div className="bg-white p-8 rounded-xl w-full max-w-lg shadow-2xl animate-fade-in-up border border-gray-100">
+                  
+                  <div className="flex justify-between items-center mb-6 border-b pb-4">
+                      <h2 className="text-2xl font-bold text-gray-800">
+                          {usuarioEditando ? '✏️ Editar Usuario' : '👤 Nuevo Usuario'}
+                      </h2>
+                      <button onClick={() => setModalUsuarioOpen(false)} className="text-gray-400 hover:text-red-500 text-2xl">✕</button>
+                  </div>
 
-                      <div className="flex justify-end gap-2">
-                          <button type="button" onClick={() => setModalUsuarioOpen(false)} className="px-4 py-2 text-gray-600">Cancelar</button>
-                          <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">Guardar</button>
+                  <form onSubmit={guardarUsuario} className="space-y-5">
+                      <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Usuario (Login)</label>
+                          <input 
+                              type="text" 
+                              placeholder="Ej: jpererez" 
+                              required 
+                              className="w-full border-2 border-gray-200 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                              value={formDataUser.Usuario} 
+                              onChange={e => setFormDataUser({...formDataUser, Usuario: e.target.value})} 
+                          />
+                      </div>
+
+                      <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Nombre Completo</label>
+                          <input 
+                              type="text" 
+                              placeholder="Ej: Juan Pérez" 
+                              required 
+                              className="w-full border-2 border-gray-200 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                              value={formDataUser.Nombre_Completo} 
+                              onChange={e => setFormDataUser({...formDataUser, Nombre_Completo: e.target.value})} 
+                          />
+                      </div>
+
+                      <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">
+                              {usuarioEditando ? "Nueva Contraseña (Opcional)" : "Contraseña"}
+                          </label>
+                          <input 
+                              type="password" 
+                              placeholder={usuarioEditando ? "Dejar en blanco para no cambiar" : "Mínimo 5 caracteres"} 
+                              required={!usuarioEditando} 
+                              minLength={usuarioEditando ? 0 : 5} // Validación HTML extra
+                              className="w-full border-2 border-gray-200 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                              value={formDataUser.Passwd} 
+                              onChange={e => setFormDataUser({...formDataUser, Passwd: e.target.value})} 
+                          />
+                          <p className="text-xs text-gray-400 mt-1">Debe contener al menos 5 caracteres.</p>
+                      </div>
+                      
+                      <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Rol Asignado</label>
+                          <select 
+                              className="w-full border-2 border-gray-200 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white"
+                              required 
+                              value={formDataUser.ID_Rol} 
+                              onChange={e => setFormDataUser({...formDataUser, ID_Rol: parseInt(e.target.value)})}
+                          >
+                              <option value="">-- Seleccione un Rol --</option>
+                              {roles.map(r => <option key={r.ID} value={r.ID}>{r.Rol}</option>)}
+                          </select>
+                      </div>
+
+                      <div className="flex justify-end gap-3 pt-4 border-t mt-4">
+                          <button 
+                              type="button" 
+                              onClick={() => setModalUsuarioOpen(false)} 
+                              className="px-6 py-3 text-gray-600 hover:bg-gray-100 rounded-lg font-bold transition-colors"
+                          >
+                              Cancelar
+                          </button>
+                          <button 
+                              type="submit" 
+                              className="px-8 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-lg hover:shadow-blue-200 transition-all active:scale-95"
+                          >
+                              {usuarioEditando ? 'Actualizar Datos' : 'Crear Usuario'}
+                          </button>
                       </div>
                   </form>
               </div>
           </div>
       )}
-
-      {/* ... Modales Rol y Permisos iguales ... */}
       
       {/* MODAL CREAR ROL */}
       {modalRolOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white p-6 rounded-lg w-80 shadow-xl">
+              <div className="bg-white p-6 rounded-lg w-80 shadow-xl animate-fade-in-up">
                   <h2 className="text-xl font-bold mb-4 text-gray-800">Nuevo Rol</h2>
                   <form onSubmit={guardarRol}>
                       <input 
                         type="text" placeholder="Nombre del Rol (ej: Gerente)" required 
                         className="w-full border border-gray-300 p-2 rounded mb-4 focus:ring-2 focus:ring-purple-500 outline-none"
-                        value={formDataRol.Nombre}
-                        onChange={e => setFormDataRol({ Nombre: e.target.value })}
+                        value={formDataRol.nombre} // Asegúrate que sea 'nombre' en minúscula
+                        onChange={e => setFormDataRol({ nombre: e.target.value })}
                       />
                       <div className="flex justify-end gap-2">
                           <button type="button" onClick={() => setModalRolOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancelar</button>
@@ -332,7 +488,7 @@ const Usuarios = () => {
       {/* MODAL PERMISOS */}
       {modalPermisosOpen && rolSeleccionado && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white p-6 rounded-lg w-full max-w-2xl h-[80vh] flex flex-col shadow-2xl">
+              <div className="bg-white p-6 rounded-lg w-full max-w-2xl h-[80vh] flex flex-col shadow-2xl animate-fade-in-up">
                   <div className="mb-4">
                     <h2 className="text-xl font-bold text-gray-800">Configurar Permisos</h2>
                     <p className="text-gray-500">Rol: <span className="font-bold text-purple-600">{rolSeleccionado.Rol}</span></p>
@@ -368,6 +524,16 @@ const Usuarios = () => {
               </div>
           </div>
       )}
+
+      {/* COMPONENTE MODAL DE CONFIRMACIÓN */}
+      <ConfirmModal 
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmModal.action}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          tipo={confirmModal.tipo}
+      />
 
     </div>
   );

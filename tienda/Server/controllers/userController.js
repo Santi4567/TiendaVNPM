@@ -31,18 +31,25 @@ const createUser = async (req, res) => {
 };
 
 // MODIFICAR USUARIO
+// MODIFICAR USUARIO
 const updateUser = async (req, res) => {
     try {
-        const { id } = req.params; // El ID viene en la URL: /api/users/1
+        const { id } = req.params;
         const { Usuario, Nombre_Completo, ID_Rol, Activo } = req.body;
 
-        // 1. Verificar si el usuario existe antes de editar
+        // --- PROTECCIÓN BLINDADA ---
+        // 1. Nadie puede editar al Super Admin (ID 1)
+        if (parseInt(id) === 1) {
+            return res.status(403).json({ error: 'El Super Administrador está protegido y no se puede editar.' });
+        }
+        
+        // 2. Verificar si el usuario existe
         const currentData = await UsuarioModel.findById(id);
         if (!currentData) {
             return res.status(404).json({ message: 'Usuario no encontrado' });
         }
 
-        // 2. Actualizar
+        // 3. Actualizar
         await UsuarioModel.update(id, {
             usuario: Usuario,
             nombreCompleto: Nombre_Completo,
@@ -131,10 +138,17 @@ const getUserByUsername = async (req, res) => {
 const deleteUser = async (req, res) => {
     try {
         const { id } = req.params;
+        const targetId = parseInt(id);
+        const requesterId = req.user.userId;
 
-        // Evitar que el admin se borre a sí mismo
-        if (parseInt(id) === req.user.userId) {
-            return res.status(400).json({ message: 'No puedes eliminar tu propia cuenta' });
+        // 1. PROTECCIÓN: Nadie toca al Super Admin (ID 1)
+        if (targetId === 1) {
+            return res.status(400).json({ message: 'El Super Administrador es intocable.' });
+        }
+
+        // 2. PROTECCIÓN: No puedes desactivarte a ti mismo
+        if (targetId === requesterId) {
+            return res.status(400).json({ message: 'No puedes desactivar tu propia cuenta mientras está en uso.' });
         }
 
         const success = await UsuarioModel.delete(id);

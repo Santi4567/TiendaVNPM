@@ -89,7 +89,7 @@ const deleteClient = async (req, res) => {
         res.json({ success: true, mensaje: 'Cliente eliminado' });
 
     } catch (error) {
-        res.status(500).json({ error: 'Error al eliminar' });
+        res.status(500).json({ error: 'Error al eliminar:Historico comprometido' });
     }
 };
 

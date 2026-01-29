@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext'; // <--- 1. Hook de Notificaciones
 import { apiCall } from '../utils/api';
+import ConfirmModal from '../components/ConfirmModal'; // <--- 2. Componente Modal
 
 const Clientes = () => {
-  const { hasPermission } = useAuth(); // Hook de seguridad
+  const { hasPermission } = useAuth();
+  const { notify } = useNotification(); // <--- 3. Usar Hook
 
   // Estados para clientes
   const [busquedaCliente, setBusquedaCliente] = useState('');
@@ -17,20 +20,18 @@ const Clientes = () => {
   const [cuentasCliente, setCuentasCliente] = useState([]);
   const [cargandoCuentas, setCargandoCuentas] = useState(false);
 
-  // Estados para mensajes (Feedback)
-  const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
-
-  // Función para mostrar mensajes temporales
-  const mostrarMensaje = (tipo, texto) => {
-    setMensaje({ tipo, texto });
-    setTimeout(() => {
-      setMensaje({ tipo: '', texto: '' });
-    }, 4000);
-  };
+  // Estado para el Modal de Confirmación
+  const [confirmModal, setConfirmModal] = useState({ 
+      isOpen: false, 
+      action: null, 
+      title: '', 
+      message: '', 
+      tipo: 'danger' 
+  });
 
   // --- API CALLS ---
 
-  // 1. Buscar clientes (para filtrar)
+  // 1. Buscar clientes
   const buscarClientes = async (termino) => {
     if (!termino.trim()) {
       setClientesFiltrados([]);
@@ -39,9 +40,7 @@ const Clientes = () => {
 
     setCargandoClientes(true);
     try {
-      // Usamos el endpoint de búsqueda de clientes
       const response = await apiCall(`/api/clientes/buscar?q=${encodeURIComponent(termino)}`);
-      // apiCall devuelve { status, data }. Si data es array, úsalo directamente.
       setClientesFiltrados(response.data || []);
     } catch (error) {
       console.error('Error buscando clientes:', error);
@@ -60,8 +59,7 @@ const Clientes = () => {
       const response = await apiCall('/api/cuentas/todas');
       setTodasLasCuentas(response.data || []);
     } catch (error) {
-      console.error('Error obteniendo cuentas:', error);
-      mostrarMensaje('error', 'Error al cargar el reporte de cuentas');
+      notify('Error al cargar el reporte de cuentas', 'error');
     } finally {
       setCargandoCuentas(false);
     }
@@ -76,80 +74,85 @@ const Clientes = () => {
       const response = await apiCall(`/api/cuentas/cliente/${clienteId}`);
       setCuentasCliente(response.data || []);
     } catch (error) {
-      console.error('Error obteniendo cuentas del cliente:', error);
-      mostrarMensaje('error', 'Error al cargar las cuentas del cliente');
+      notify('Error al cargar las cuentas del cliente', 'error');
     } finally {
       setCargandoCuentas(false);
     }
   };
 
-  // 4. Saldar Deuda (Requiere permiso settle.debt)
-  const saldarDeuda = async () => {
-    if (!clienteSeleccionado) {
-      mostrarMensaje('error', 'Debe seleccionar un cliente');
-      return;
-    }
+  // --- ACCIONES CON MODAL (Reemplazo de window.confirm) ---
 
-    // Verificar Permiso
-    if (!hasPermission('settle.debt')) {
-      mostrarMensaje('error', 'No tienes permiso para cobrar deudas.');
-      return;
-    }
+  // A. PREPARAR SALDAR DEUDA
+  const solicitarSaldar = () => {
+    if (!clienteSeleccionado) return notify('Debe seleccionar un cliente', 'error');
+    if (!hasPermission('settle.debt')) return notify('No tienes permiso para cobrar deudas.', 'error');
 
-    const confirmar = window.confirm(
-      `¿Saldar la deuda de ${clienteSeleccionado.Nombre}?\n` +
-      `Total: $${calcularTotal(cuentasCliente)}\n` +
-      `Esta acción moverá los registros a Ventas.`
-    );
+    setConfirmModal({
+        isOpen: true,
+        title: `¿Saldar Deuda de ${clienteSeleccionado.Nombre}?`,
+        message: `El total a cobrar es $${calcularTotal(cuentasCliente)}. Esta acción moverá los registros a Ventas.`,
+        tipo: 'success', // Verde para indicar acción positiva (Cobrar)
+        action: ejecutarSaldarDeuda
+    });
+  };
 
-    if (!confirmar) return;
-
+  const ejecutarSaldarDeuda = async () => {
     try {
       const response = await apiCall('/api/cuentas/saldar', 'POST', {
         clienteId: clienteSeleccionado.ID
       });
 
       if (response.data.success) {
-        mostrarMensaje('success', `Deuda saldada. Registros movidos a ventas: ${response.data.registros_venta}`);
+        notify(`Deuda saldada. Registros movidos: ${response.data.registros_venta}`, 'success');
         limpiarSeleccion();
-        obtenerTodasLasCuentas(); // Recargar la lista general
+        obtenerTodasLasCuentas();
       } else {
-        mostrarMensaje('error', response.data.error || 'Error al saldar');
+        notify(response.data.error || 'Error al saldar', 'error');
       }
     } catch (error) {
-      mostrarMensaje('error', 'Error de conexión al saldar deuda');
+      notify('Error de conexión al saldar deuda', 'error');
+    } finally {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
     }
   };
 
-  // 5. Eliminar Registro Individual (Corrección - Requiere update.debt)
-  const eliminarRegistro = async (idCuenta, nombreProducto) => {
+  // B. PREPARAR ELIMINAR REGISTRO
+  const solicitarEliminarRegistro = (idCuenta, nombreProducto) => {
     if (!hasPermission('update.debt')) return;
 
-    const confirmar = window.confirm(`¿Eliminar el cargo de "${nombreProducto}" de la cuenta?`);
-    if (!confirmar) return;
+    setConfirmModal({
+        isOpen: true,
+        title: '¿Eliminar Cargo?',
+        message: `Estás a punto de eliminar el cargo "${nombreProducto}". Esta acción no se puede deshacer.`,
+        tipo: 'danger', // Rojo para acción destructiva
+        action: () => ejecutarEliminarRegistro(idCuenta)
+    });
+  };
 
+  const ejecutarEliminarRegistro = async (idCuenta) => {
     try {
       const response = await apiCall(`/api/cuentas/eliminar/${idCuenta}`, 'DELETE');
 
       if (response.data.success) {
-        mostrarMensaje('success', 'Cargo eliminado correctamente');
-        // Recargar la lista según el contexto (cliente seleccionado o general)
+        notify('Cargo eliminado correctamente', 'success');
+        // Recargar la lista según el contexto
         if (clienteSeleccionado) {
           obtenerCuentasCliente(clienteSeleccionado.ID);
         } else {
           obtenerTodasLasCuentas();
         }
       } else {
-        mostrarMensaje('error', response.data.error || 'Error al eliminar cargo');
+        notify(response.data.error || 'Error al eliminar cargo', 'error');
       }
     } catch (error) {
-      mostrarMensaje('error', 'Error de conexión');
+      notify('Error de conexión', 'error');
+    } finally {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
     }
   };
 
-  // --- EFECTOS ---
+  // --- EFECTOS Y HELPERS ---
 
-  // Buscar con debounce
   useEffect(() => {
     const timer = setTimeout(() => {
       if (busquedaCliente) buscarClientes(busquedaCliente);
@@ -157,12 +160,9 @@ const Clientes = () => {
     return () => clearTimeout(timer);
   }, [busquedaCliente]);
 
-  // Carga inicial
   useEffect(() => {
     obtenerTodasLasCuentas();
   }, []);
-
-  // --- HELPERS ---
 
   const seleccionarCliente = (cliente) => {
     setClienteSeleccionado(cliente);
@@ -176,7 +176,7 @@ const Clientes = () => {
     setBusquedaCliente('');
     setMostrarResultadosCliente(false);
     setCuentasCliente([]);
-    obtenerTodasLasCuentas(); // Volver a cargar la lista general
+    obtenerTodasLasCuentas();
   };
 
   const calcularTotal = (cuentas) => {
@@ -184,13 +184,10 @@ const Clientes = () => {
     return cuentas.reduce((total, cuenta) => total + parseFloat(cuenta.Precio), 0).toFixed(2);
   };
 
-  // Determinar qué lista mostrar
   const cuentasAMostrar = clienteSeleccionado ? cuentasCliente : todasLasCuentas;
-
 
   // --- RENDER ---
 
-  // Protección de Vista General
   if (!hasPermission('view.debt')) {
     return (
         <div className="p-8 text-center text-red-500 bg-red-50 rounded-lg m-4 border border-red-200">
@@ -203,21 +200,9 @@ const Clientes = () => {
     <div className="min-h-screen bg-gray-50">
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Título */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Gestión de Cuentas (Fiado)</h1>
         </div>
-
-        {/* Mensajes Flotantes */}
-        {mensaje.texto && (
-          <div className={`mb-4 p-4 rounded-lg ${
-            mensaje.tipo === 'success' 
-              ? 'bg-green-50 text-green-700 border border-green-200' 
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}>
-            {mensaje.texto}
-          </div>
-        )}
 
         {/* --- BUSCADOR Y PANEL DE CLIENTE --- */}
         <div className="mb-8 bg-white p-6 rounded-lg shadow-sm border border-gray-100">
@@ -239,10 +224,10 @@ const Clientes = () => {
                 </div>
                 
                 <div className="flex space-x-3">
-                  {/* Botón SALDAR: Solo si hay deuda y permiso */}
+                  {/* Botón SALDAR (Con Modal) */}
                   {parseFloat(calcularTotal(cuentasCliente)) > 0 && hasPermission('settle.debt') && (
                     <button
-                      onClick={saldarDeuda}
+                      onClick={solicitarSaldar} // <--- CAMBIADO
                       className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-sm font-medium flex items-center gap-2"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -280,7 +265,7 @@ const Clientes = () => {
                 </svg>
               </div>
 
-              {/* Lista desplegable de resultados */}
+              {/* Lista desplegable */}
               {mostrarResultadosCliente && busquedaCliente && (
                 <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-xl max-h-60 overflow-auto">
                   {clientesFiltrados.length > 0 ? (
@@ -331,7 +316,6 @@ const Clientes = () => {
                     <th className="px-6 py-3 text-left">Producto</th>
                     <th className="px-6 py-3 text-right">Precio</th>
                     <th className="px-6 py-3 text-center">Fecha</th>
-                    {/* Columna Acciones solo si tiene permiso de corregir */}
                     {hasPermission('update.debt') && <th className="px-6 py-3 text-center">Acciones</th>}
                   </tr>
                 </thead>
@@ -351,11 +335,11 @@ const Clientes = () => {
                           {new Date(cuenta.Fecha).toLocaleDateString('es-ES')}
                         </td>
                         
-                        {/* Botón de Eliminar Individual (Corrección) */}
+                        {/* Botón Eliminar Individual (Con Modal) */}
                         {hasPermission('update.debt') && (
                             <td className="px-6 py-4 text-center">
                                 <button
-                                    onClick={() => eliminarRegistro(cuenta.ID, cuenta.NombreProducto || cuenta.Producto)}
+                                    onClick={() => solicitarEliminarRegistro(cuenta.ID, cuenta.NombreProducto || cuenta.Producto)} // <--- CAMBIADO
                                     className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-full transition-colors"
                                     title="Eliminar registro (Corrección)"
                                 >
@@ -393,6 +377,16 @@ const Clientes = () => {
           )}
         </div>
       </div>
+
+      {/* COMPONENTE MODAL DE CONFIRMACIÓN */}
+      <ConfirmModal 
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmModal.action}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          tipo={confirmModal.tipo}
+      />
     </div>
   );
 };

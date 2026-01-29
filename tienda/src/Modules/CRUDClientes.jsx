@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext'; // <--- 1. Importar Hook
 import { apiCall } from '../utils/api';
+import ConfirmModal from '../components/ConfirmModal'; // <--- 2. Importar Modal
 
 const GestionClientes = () => {
-  const { hasPermission } = useAuth(); // Hook de permisos
+  const { hasPermission } = useAuth(); 
+  const { notify } = useNotification(); // <--- 3. Usar Hook
 
   // Estados principales
   const [clientes, setClientes] = useState([]);
@@ -22,8 +25,14 @@ const GestionClientes = () => {
   // Estados para selección
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   
-  // Estados para mensajes
-  const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
+  // Estado para el Modal de Confirmación
+  const [confirmModal, setConfirmModal] = useState({ 
+      isOpen: false, 
+      action: null, 
+      title: '', 
+      message: '', 
+      tipo: 'danger' 
+  });
 
   // 1. Cargar todos los clientes
   const cargarClientes = async () => {
@@ -37,7 +46,7 @@ const GestionClientes = () => {
       setClientesFiltrados(data);
     } catch (error) {
       console.error('Error cargando clientes:', error);
-      mostrarMensaje('error', 'Error al cargar los clientes');
+      notify('Error al cargar los clientes', 'error');
     } finally {
       setCargando(false);
     }
@@ -59,13 +68,6 @@ const GestionClientes = () => {
   useEffect(() => {
     cargarClientes();
   }, []);
-
-  const mostrarMensaje = (tipo, texto) => {
-    setMensaje({ tipo, texto });
-    setTimeout(() => {
-      setMensaje({ tipo: '', texto: '' });
-    }, 3000);
-  };
 
   // Acciones del formulario
   const abrirFormularioAgregar = () => {
@@ -96,7 +98,7 @@ const GestionClientes = () => {
     e.preventDefault();
     
     if (!nombreCliente.trim()) {
-      mostrarMensaje('error', 'El nombre del cliente es requerido');
+      notify('El nombre del cliente es requerido', 'error');
       return;
     }
 
@@ -112,46 +114,50 @@ const GestionClientes = () => {
       });
 
       if (response.data.success) {
-        mostrarMensaje('success', response.data.mensaje);
+        notify(response.data.mensaje, 'success');
         cerrarFormulario();
         cargarClientes();
       } else {
-        mostrarMensaje('error', response.data.error || 'Error al guardar');
+        notify(response.data.error || 'Error al guardar', 'error');
       }
     } catch (error) {
       console.error('Error guardando cliente:', error);
-      mostrarMensaje('error', 'Error de conexión al guardar cliente');
+      notify('Error de conexión al guardar cliente', 'error');
     }
   };
 
-  // 3. Eliminar cliente
-  const eliminarCliente = async (cliente) => {
-    const confirmar = window.confirm(
-      `¿Eliminar al cliente "${cliente.Nombre}"?\nEsta acción no se puede deshacer.`
-    );
+  // 3. Eliminar cliente (CON MODAL)
+  const solicitarEliminar = (cliente) => {
+    setConfirmModal({
+        isOpen: true,
+        title: '¿Eliminar Cliente?',
+        message: `¿Estás seguro de eliminar a "${cliente.Nombre}"? Esta acción no se puede deshacer.`,
+        tipo: 'danger',
+        action: () => ejecutarEliminar(cliente.ID)
+    });
+  };
 
-    if (!confirmar) return;
-
+  const ejecutarEliminar = async (id) => {
     try {
-      const response = await apiCall(`/api/clientes/eliminar/${cliente.ID}`, 'DELETE');
+      const response = await apiCall(`/api/clientes/eliminar/${id}`, 'DELETE');
 
       if (response.data.success) {
-        mostrarMensaje('success', response.data.mensaje);
+        notify(response.data.mensaje, 'success');
         setClienteSeleccionado(null);
         cargarClientes();
       } else {
-        // Aquí atraparemos si el backend dice "No se puede borrar porque tiene deudas"
-        mostrarMensaje('error', response.data.error || 'Error al eliminar');
+        notify(response.data.error || 'Error al eliminar', 'error');
       }
     } catch (error) {
       console.error('Error eliminando:', error);
-      mostrarMensaje('error', 'Error de conexión al eliminar');
+      notify('Error de conexión al eliminar', 'error');
+    } finally {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
     }
   };
 
   // --- RENDER ---
   
-  // Protección de vista
   if (!hasPermission('view.client')) {
     return (
         <div className="p-8 text-center text-red-500 bg-red-50 rounded-lg m-4 border border-red-200">
@@ -168,20 +174,9 @@ const GestionClientes = () => {
           <h1 className="text-3xl font-bold text-gray-900">Gestión de Clientes</h1>
         </div>
 
-        {/* Mensajes */}
-        {mensaje.texto && (
-          <div className={`mb-4 p-4 rounded-lg ${
-            mensaje.tipo === 'success' 
-              ? 'bg-green-50 text-green-700 border border-green-200' 
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}>
-            {mensaje.texto}
-          </div>
-        )}
-
         {/* FORMULARIO */}
         {mostrarFormulario ? (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          <div className="bg-white rounded-lg shadow-md p-6 mb-8 animate-fade-in">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
               {modoEdicion ? 'Editar Cliente' : 'Agregar Nuevo Cliente'}
             </h2>
@@ -239,7 +234,7 @@ const GestionClientes = () => {
                 </div>
               </div>
               
-              {/* Botón AGREGAR: Solo si tiene permiso add.client */}
+              {/* Botón AGREGAR */}
               {hasPermission('add.client') && (
                 <button
                   onClick={abrirFormularioAgregar}
@@ -263,7 +258,7 @@ const GestionClientes = () => {
                   </div>
                   <div className="flex space-x-3">
                     
-                    {/* Botón EDITAR: Solo si tiene update.client */}
+                    {/* Botón EDITAR */}
                     {hasPermission('update.client') && (
                         <button
                         onClick={() => abrirFormularioEditar(clienteSeleccionado)}
@@ -276,10 +271,10 @@ const GestionClientes = () => {
                         </button>
                     )}
 
-                    {/* Botón ELIMINAR: Solo si tiene delete.client */}
+                    {/* Botón ELIMINAR (Con Modal) */}
                     {hasPermission('delete.client') && (
                         <button
-                        onClick={() => eliminarCliente(clienteSeleccionado)}
+                        onClick={() => solicitarEliminar(clienteSeleccionado)} // <--- CAMBIADO
                         className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium flex items-center space-x-1"
                         >
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -369,6 +364,16 @@ const GestionClientes = () => {
           </>
         )}
       </div>
+
+      {/* COMPONENTE MODAL DE CONFIRMACIÓN */}
+      <ConfirmModal 
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmModal.action}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          tipo={confirmModal.tipo}
+      />
     </div>
   );
 };

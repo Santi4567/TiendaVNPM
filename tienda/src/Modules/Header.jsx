@@ -37,6 +37,11 @@ const Header = () => {
       path: '/productos', 
       visible: hasPermission('view.product') 
     },
+        { 
+      name: 'Alertas', 
+      path: '/alertas', 
+      visible: hasPermission('view.alerts') 
+    },
     { 
       name: 'Histórico', 
       path: '/historico', 
@@ -47,11 +52,6 @@ const Header = () => {
       path: '/usuarios', 
       // Solo el Admin (rolId 1) o quien tenga permiso de ver roles
       visible: user?.rolId === 1 
-    },
-    { 
-      name: 'Alertas', 
-      path: '/alertas', 
-      visible: hasPermission('view.product') 
     },
     { 
       name: 'Libros', 
