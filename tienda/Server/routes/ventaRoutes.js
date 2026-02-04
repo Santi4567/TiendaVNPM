@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { 
-    crearVenta, getReporteHoy, getReporteFecha, getTotalesHoy, getTotalesFecha
+    crearVenta, getReporteHoy, getReporteFecha, getTotalesHoy, getTotalesFecha, generarReporte, cancelarVenta
 } = require('../controllers/ventaController');
 
 const { validateVenta, validateFecha } = require('../validators/ventaValidator');
@@ -44,6 +44,20 @@ router.get('/total/:fecha',
     requirePermission('view.report'), 
     validateFecha,
     getTotalesFecha
+);
+
+//Generar reporte detallado
+router.post('/reporte-avanzado', 
+    verifyToken,
+    requirePermission('view.report'),  
+    generarReporte
+);
+
+//Cancelar una venta
+router.delete('/:id', 
+    verifyToken, 
+    requirePermission('cancel.item.report'), 
+    cancelarVenta
 );
 
 module.exports = router;

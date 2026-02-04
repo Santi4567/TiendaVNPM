@@ -90,8 +90,8 @@ const HistorialLibreria = () => {
   const formatDate = (d) => new Date(d).toLocaleString('es-ES');
 
   return (
-    <div className="p-6 max-w-7xl mx-auto min-h-screen bg-gray-50">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+    <div className="p-6 max-w-7xl mx-auto min-h-screen ">
+      <h1 className="text-3xl font-bold text-white mb-6 flex items-center gap-2">
           📜 Historial de Librería
       </h1>
 

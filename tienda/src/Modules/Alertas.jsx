@@ -163,16 +163,16 @@ const Alertas = () => {
   if (!hasPermission('view.product')) return <div>Sin permisos</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Centro de Alertas</h1>
+        <h1 className="text-3xl font-bold text-white mb-6">Centro de Alertas</h1>
 
         {/* Tabs */}
         <div className="flex space-x-4 mb-6 border-b border-gray-200">
           <button
             onClick={() => setActiveTab('stock')}
-            className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${
+            className={`pb-3 px-4 text-sm font-medium transition-colors border-b-4 ${
               activeTab === 'stock' ? 'border-red-500 text-red-600' : 'border-transparent text-gray-500'
             }`}
           >
@@ -180,7 +180,7 @@ const Alertas = () => {
           </button>
           <button
             onClick={() => setActiveTab('caducidad')}
-            className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${
+            className={`pb-3 px-4 text-sm font-medium transition-colors border-b-4 ${
               activeTab === 'caducidad' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500'
             }`}
           >

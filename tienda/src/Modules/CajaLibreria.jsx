@@ -173,11 +173,11 @@ const CajaLibreria = () => {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto min-h-screen bg-gray-50">
+    <div className="p-6 max-w-7xl mx-auto min-h-screen">
       
       {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">📚 Caja Librería</h1>
+          <h1 className="text-3xl font-bold text-white flex items-center gap-2">📚 Caja Librería</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

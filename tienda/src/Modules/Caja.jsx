@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiCall } from '../utils/api';
+import ConfirmModal from '../components/ConfirmModal'; // <--- 1. IMPORTAR MODAL
 
 const Caja = () => {
   const { hasPermission } = useAuth();
 
   // --- 1. ESTADOS CON CARGA INICIAL (Lazy Init) ---
-  // Esto arregla el problema: Leemos ANTES de iniciar el componente
-  
   const [productosSeleccionados, setProductosSeleccionados] = useState(() => {
     try {
       const guardado = localStorage.getItem('caja_carrito');
@@ -40,31 +39,36 @@ const Caja = () => {
 
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
 
+  // --- ESTADO PARA EL MODAL DE CONFIRMACIÓN ---
+  const [confirmModal, setConfirmModal] = useState({ 
+      isOpen: false, 
+      action: null, 
+      title: '', 
+      message: '', 
+      tipo: 'info' // info, success, warning, danger
+  });
+
   // --- 2. EFECTOS DE GUARDADO Y LIMPIEZA ---
 
-  // Guardar Carrito cada vez que cambie
   useEffect(() => {
     localStorage.setItem('caja_carrito', JSON.stringify(productosSeleccionados));
   }, [productosSeleccionados]);
 
-  // Guardar Cliente cada vez que cambie
   useEffect(() => {
     localStorage.setItem('caja_cliente', JSON.stringify(clienteSeleccionado));
   }, [clienteSeleccionado]);
 
-  // LIMPIEZA DE SEGURIDAD: Borrar token si quedó colado en localStorage
   useEffect(() => {
     if (localStorage.getItem('token')) {
         console.warn("Limpiando token inseguro del almacenamiento local...");
         localStorage.removeItem('token');
-        localStorage.removeItem('accessToken'); // Por si acaso
+        localStorage.removeItem('accessToken'); 
     }
   }, []);
 
   const limpiarStorage = () => {
     localStorage.removeItem('caja_carrito');
     localStorage.removeItem('caja_cliente');
-    // Reiniciamos los estados también
     setProductosSeleccionados([]); 
     setClienteSeleccionado(null);
   };
@@ -76,7 +80,7 @@ const Caja = () => {
     }, 4000);
   };
 
-  // --- LÓGICA DE BUSCADOR Y ESCÁNER (Igual que antes) ---
+  // --- LÓGICA DE BUSCADOR Y ESCÁNER ---
   
   const buscarProductos = async (termino) => {
     if (!hasPermission('view.product')) return; 
@@ -101,13 +105,9 @@ const Caja = () => {
     try {
       const response = await apiCall(`/api/productos/buscar?q=${encodeURIComponent(codigo)}`);
       const productos = response.data || [];
-      
-      const productoExacto = productos.find(p => 
-        p.Codigo && p.Codigo.toString() === codigo.toString()
-      );
+      const productoExacto = productos.find(p => p.Codigo && p.Codigo.toString() === codigo.toString());
       
       if (productoExacto) {
-        // VALIDACIÓN STOCK ROJO
         if (productoExacto.Stock <= 0) {
             mostrarMensaje('error', `AGOTADO: "${productoExacto.Producto}" tiene stock 0.`);
         } else {
@@ -139,10 +139,8 @@ const Caja = () => {
   const manejarCambioBusqueda = (e) => {
     const valor = e.target.value;
     setBusqueda(valor);
-    
     const ahora = Date.now();
     if (!tiempoInicio) setTiempoInicio(ahora);
-    
     const tiempoTranscurrido = ahora - (tiempoInicio || ahora);
     const velocidadTipeo = valor.length / (tiempoTranscurrido + 1) * 1000; 
     
@@ -152,7 +150,6 @@ const Caja = () => {
       setEsEscaneo(false);
       setTiempoInicio(ahora);
     }
-    
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     if (!esEscaneo) setMostrarResultados(valor.length > 0);
   };
@@ -196,20 +193,14 @@ const Caja = () => {
   }, [busquedaCliente]);
 
   const agregarProducto = (producto) => {
-    if (producto.Stock <= 0) return; // Doble validación
-
+    if (producto.Stock <= 0) return;
     const productoExistente = productosSeleccionados.find(p => p.ID === producto.ID);
-    
     if (productoExistente) {
       setProductosSeleccionados(productosSeleccionados.map(p =>
         p.ID === producto.ID ? { ...p, cantidad: p.cantidad + 1 } : p
       ));
     } else {
-      setProductosSeleccionados([...productosSeleccionados, { 
-        ...producto, 
-        cantidad: 1,
-        precio: producto.Precio_Publico 
-      }]);
+      setProductosSeleccionados([...productosSeleccionados, { ...producto, cantidad: 1, precio: producto.Precio_Publico }]);
     }
     setBusqueda('');
     setMostrarResultados(false);
@@ -242,10 +233,23 @@ const Caja = () => {
     setMostrarResultadosCliente(false);
   };
 
-  const cancelarVenta = () => {
-    if(!window.confirm("¿Seguro que deseas cancelar la venta actual?")) return;
-    limpiarStorage(); // Borramos datos guardados
+  // --- NUEVAS FUNCIONES CON MODAL ---
+
+  // 1. CANCELAR VENTA
+  const solicitarCancelacion = () => {
+    if (productosSeleccionados.length === 0) return;
     
+    setConfirmModal({
+        isOpen: true,
+        title: 'Cancelar Venta',
+        message: '¿Estás seguro de vaciar el carrito? Se perderá el progreso actual.',
+        tipo: 'danger',
+        action: ejecutarCancelacion
+    });
+  };
+
+  const ejecutarCancelacion = () => {
+    limpiarStorage();
     setBusqueda('');
     setMostrarResultados(false);
     setBusquedaCliente('');
@@ -253,27 +257,34 @@ const Caja = () => {
     setEsEscaneo(false);
     setTiempoInicio(null);
     setMensaje({ tipo: '', texto: '' });
+    setConfirmModal(prev => ({...prev, isOpen: false}));
   };
 
-  const finalizarVenta = async () => {
-    if (productosSeleccionados.length === 0) {
-      mostrarMensaje('error', 'No hay productos seleccionados');
-      return;
-    }
-    if (!hasPermission('create.sale')) {
-      mostrarMensaje('error', 'Sin permisos para vender.');
-      return;
-    }
-    
+  // 2. COBRAR (FINALIZAR)
+  const solicitarCobro = () => {
+    if (productosSeleccionados.length === 0) return mostrarMensaje('error', 'No hay productos seleccionados');
+    if (!hasPermission('create.sale')) return mostrarMensaje('error', 'Sin permisos para vender.');
+
+    setConfirmModal({
+        isOpen: true,
+        title: 'Confirmar Cobro',
+        message: `Total a cobrar: $${calcularTotal()}\n\n¿Deseas procesar la venta?`,
+        tipo: 'success',
+        action: ejecutarCobro
+    });
+  };
+
+  const ejecutarCobro = async () => {
+    setConfirmModal(prev => ({...prev, isOpen: false})); // Cerrar modal
     try {
-      const response = await apiCall('/ventas/finalizar', 'POST', {
+      const response = await apiCall('/api/ventas/finalizar', 'POST', {
         productos: productosSeleccionados,
         idCliente: clienteSeleccionado?.ID || null 
       });
 
       if (response.data.success) {
         mostrarMensaje('success', `Venta exitosa. Total: $${calcularTotal()}`);
-        limpiarStorage(); // Éxito = Limpiar memoria
+        limpiarStorage();
       } else {
         mostrarMensaje('error', response.data.error || 'Error al procesar venta');
       }
@@ -282,11 +293,23 @@ const Caja = () => {
     }
   };
 
-  const agregarACuenta = async () => {
+  // 3. FIAR (CUENTA)
+  const solicitarFiado = () => {
     if (productosSeleccionados.length === 0) return mostrarMensaje('error', 'Carrito vacío');
-    if (!clienteSeleccionado) return mostrarMensaje('error', 'Seleccione un cliente');
+    if (!clienteSeleccionado) return mostrarMensaje('error', 'Seleccione un cliente para fiar');
     if (!hasPermission('add.debt')) return mostrarMensaje('error', 'Sin permisos para fiar.');
-    
+
+    setConfirmModal({
+        isOpen: true,
+        title: 'Confirmar Crédito / Fiado',
+        message: `Se agregará un cargo de $${calcularTotal()} a la cuenta de:\n\n👤 ${clienteSeleccionado.Nombre}\n\n¿Estás seguro?`,
+        tipo: 'warning',
+        action: ejecutarFiado
+    });
+  };
+
+  const ejecutarFiado = async () => {
+    setConfirmModal(prev => ({...prev, isOpen: false})); // Cerrar modal
     try {
       const response = await apiCall('/cuentas/agregar', 'POST', {
         productos: productosSeleccionados,
@@ -294,8 +317,8 @@ const Caja = () => {
       });
 
       if (response.data.success) {
-        mostrarMensaje('success', `Fiado a ${clienteSeleccionado.Nombre}`);
-        limpiarStorage(); // Éxito = Limpiar memoria
+        mostrarMensaje('success', `Fiado correctamente a ${clienteSeleccionado.Nombre}`);
+        limpiarStorage();
       } else {
         mostrarMensaje('error', response.data.error || 'Error al fiar');
       }
@@ -305,10 +328,10 @@ const Caja = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8 flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-900">Punto de Venta (Caja)</h1>
+          <h1 className="text-3xl font-bold text-white">Punto de Venta (Caja)</h1>
           {!hasPermission('create.sale') && (
             <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">Modo Solo Lectura</span>
           )}
@@ -336,7 +359,6 @@ const Caja = () => {
               className="w-full px-4 py-4 pl-12 text-lg border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               autoFocus
             />
-            {/* Iconos de lupa/escáner... (Igual que antes) */}
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             </div>
@@ -389,12 +411,9 @@ const Caja = () => {
           )}
         </div>
 
-        {/* ... (EL RESTO DEL CÓDIGO DE CLIENTES Y TABLA CARRITO SE MANTIENE IGUAL) ... */}
-        {/* Solo asegúrate de copiar el resto del componente anterior (Clientes y Tabla) aquí abajo */}
         {/* CLIENTE */}
         {hasPermission('view.client') && (
             <div className="mb-6 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-            {/* ... lógica de cliente (sin cambios, solo usa el estado clienteSeleccionado que ya inicializamos bien) ... */}
             <h2 className="text-lg font-semibold text-gray-700 mb-3">Cliente (Opcional / Fiado)</h2>
             {clienteSeleccionado ? (
                 <div className="flex justify-between items-center bg-blue-50 p-3 rounded-md border border-blue-200">
@@ -412,7 +431,6 @@ const Caja = () => {
             ) : (
                 <div className="relative">
                     <input type="text" placeholder="Buscar cliente..." value={busquedaCliente} onChange={(e) => { setBusquedaCliente(e.target.value); setMostrarResultadosCliente(e.target.value.length > 0); }} className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500" />
-                    {/* ... Dropdown resultados clientes ... */}
                     {mostrarResultadosCliente && busquedaCliente && (
                         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-auto">
                         {clientesFiltrados.length > 0 ? (
@@ -484,20 +502,45 @@ const Caja = () => {
           )}
         </div>
 
-        {/* BOTONERA */}
+        {/* BOTONERA ACTUALIZADA */}
         <div className="flex flex-col sm:flex-row justify-end gap-4">
-          <button onClick={cancelarVenta} className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium shadow-sm">Cancelar (F4)</button>
+          <button 
+              onClick={solicitarCancelacion} // AHORA USA SOLICITAR CANCELACIÓN (MODAL)
+              className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium shadow-sm"
+          >
+              Cancelar (F4)
+          </button>
+          
           {hasPermission('add.debt') && (
-            <button onClick={agregarACuenta} disabled={!clienteSeleccionado || productosSeleccionados.length === 0} className={`px-6 py-3 rounded-lg font-medium text-white shadow-md flex items-center justify-center gap-2 ${!clienteSeleccionado || productosSeleccionados.length === 0 ? 'bg-orange-300 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600'}`}>
+            <button 
+                onClick={solicitarFiado} // AHORA USA SOLICITAR FIADO (MODAL)
+                disabled={!clienteSeleccionado || productosSeleccionados.length === 0} 
+                className={`px-6 py-3 rounded-lg font-medium text-white shadow-md flex items-center justify-center gap-2 ${!clienteSeleccionado || productosSeleccionados.length === 0 ? 'bg-orange-300 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600'}`}
+            >
                 Fiar / A Cuenta
             </button>
           )}
+          
           {hasPermission('create.sale') && (
-            <button onClick={finalizarVenta} disabled={productosSeleccionados.length === 0} className={`px-8 py-3 rounded-lg font-bold text-white shadow-lg flex items-center justify-center gap-2 ${productosSeleccionados.length === 0 ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
+            <button 
+                onClick={solicitarCobro} // AHORA USA SOLICITAR COBRO (MODAL)
+                disabled={productosSeleccionados.length === 0} 
+                className={`px-8 py-3 rounded-lg font-bold text-white shadow-lg flex items-center justify-center gap-2 ${productosSeleccionados.length === 0 ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+            >
                 COBRAR
             </button>
           )}
         </div>
+
+        {/* MODAL UNIVERSAL PARA CONFIRMACIONES */}
+        <ConfirmModal 
+            isOpen={confirmModal.isOpen}
+            onClose={() => setConfirmModal(prev => ({...prev, isOpen: false}))}
+            onConfirm={confirmModal.action}
+            title={confirmModal.title}
+            message={confirmModal.message}
+            tipo={confirmModal.tipo}
+        />
 
       </div>
     </div>

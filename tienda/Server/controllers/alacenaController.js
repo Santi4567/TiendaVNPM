@@ -10,7 +10,18 @@ const getInventario = async (req, res) => {
 
 const crearArticulo = async (req, res) => {
     try {
-        await AlacenaModel.create(req.body);
+        // CAMBIO: Capturamos quién lo crea para la bitácora
+        const userId = req.user.userId;
+        const user = await UsuarioModel.findById(userId);
+        const usuarioNombre = user.Nombre_Completo || user.Usuario;
+
+        // Enviamos todo al modelo
+        await AlacenaModel.create({
+            ...req.body,
+            idUsuario: userId,
+            usuarioNombre: usuarioNombre
+        });
+
         res.json({ success: true, message: 'Artículo registrado en alacena' });
     } catch (error) { res.status(500).json({ error: error.message }); }
 };

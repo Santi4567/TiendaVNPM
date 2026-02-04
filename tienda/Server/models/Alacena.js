@@ -11,14 +11,34 @@ const AlacenaModel = {
         } catch (error) { throw error; }
     },
 
-    // Crear nuevo artículo (Ficha)
+// Crear nuevo artículo (CON TRANSACCIÓN Y BITÁCORA)
     create: async (data) => {
+        let connection;
         try {
-            const db = getDB();
+            connection = getDB();
+            await connection.beginTransaction();
+
+            // 1. Insertar Artículo
             const sql = `INSERT INTO alacena_articulos (Nombre, Categoria, Unidad, Stock, Fecha_Vencimiento) VALUES (?, ?, ?, ?, ?)`;
-            const [res] = await db.execute(sql, [data.nombre, data.categoria, data.unidad, 0, data.vencimiento || null]);
-            return res.insertId;
-        } catch (error) { throw error; }
+            const [res] = await connection.execute(sql, [
+                data.nombre, data.categoria, data.unidad, data.stock || 0, data.vencimiento || null
+            ]);
+            const newId = res.insertId;
+
+            // 2. Si hay stock inicial, registrar en Bitácora
+            if (data.stock > 0) {
+                await connection.execute(
+                    `INSERT INTO alacena_movimientos (ID_Articulo, Tipo, Cantidad, Motivo, ID_Usuario, Usuario_Snapshot) VALUES (?, 'ENTRADA', ?, 'Inventario Inicial (Creación)', ?, ?)`,
+                    [newId, data.stock, data.idUsuario, data.usuarioNombre]
+                );
+            }
+
+            await connection.commit();
+            return newId;
+        } catch (error) {
+            if (connection) await connection.rollback();
+            throw error;
+        }
     },
 
     // REGISTRAR MOVIMIENTO (Entrada/Salida)
@@ -70,10 +90,11 @@ const AlacenaModel = {
             return rows;
         } catch (error) { throw error; }
     },
-    // EDITAR ARTÍCULO
+// EDITAR ARTÍCULO (SIN TOCAR EL STOCK)
     update: async (id, data) => {
         try {
             const db = getDB();
+            // CAMBIO: Quitamos "Stock=?" de aquí. El stock solo se mueve con movimientos.
             const sql = `
                 UPDATE alacena_articulos 
                 SET Nombre=?, Categoria=?, Unidad=?, Fecha_Vencimiento=? 

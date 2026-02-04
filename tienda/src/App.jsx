@@ -9,8 +9,11 @@ import Cuentas from './Modules/Clientes.jsx';
 import Caja from './Modules/Caja.jsx';
 import Clientes from './Modules/CRUDClientes.jsx';
 import Productos from './Modules/Productos.jsx';
-import Historico from './Modules/Historico.jsx';
 import Alertas from './Modules/Alertas.jsx'; 
+
+//Reportes de ventas
+import Historico from './Modules/Historico.jsx';
+import Reporte from './Modules/ReporteVentas.jsx';
 
 //Administracion
 import Usuarios from './Modules/Usuarios.jsx'; 
@@ -87,6 +90,14 @@ function App() {
                 element={
                   <PrivateRoute permiso="view.report">
                     <Historico />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/reporte" 
+                element={
+                  <PrivateRoute permiso="view.report">
+                    <Reporte />
                   </PrivateRoute>
                 } 
               />

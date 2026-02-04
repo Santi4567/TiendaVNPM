@@ -248,12 +248,12 @@ const guardarUsuario = async (e) => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Administración del Sistema</h1>
+      <h1 className="text-3xl font-bold text-white mb-6">Administración del Sistema</h1>
 
       {/* TABS */}
       <div className="flex space-x-4 mb-6 border-b">
-        <button onClick={() => setActiveTab('usuarios')} className={`pb-2 px-4 font-medium border-b-2 transition-colors ${activeTab === 'usuarios' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>Usuarios</button>
-        <button onClick={() => setActiveTab('roles')} className={`pb-2 px-4 font-medium border-b-2 transition-colors ${activeTab === 'roles' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500'}`}>Roles y Permisos</button>
+        <button onClick={() => setActiveTab('usuarios')} className={`pb-2 px-4 font-medium border-b-4 transition-colors ${activeTab === 'usuarios' ? 'border-blue-300 text-blue-300' : 'border-transparent text-white'}`}>Usuarios</button>
+        <button onClick={() => setActiveTab('roles')} className={`pb-2 px-4 font-medium border-b-4 transition-colors ${activeTab === 'roles' ? 'border-blue-300 text-blue-300' : 'border-transparent text-white'}`}>Roles y Permisos</button>
       </div>
 
       {/* VISTA USUARIOS */}

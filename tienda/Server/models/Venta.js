@@ -1,98 +1,139 @@
 const { getDB } = require('../config/database');
 
 const VentaModel = {
-
-    /**
-     * CREAR VENTA (Transacción Compleja)
-     * 1. Verifica stock actual.
-     * 2. Descuenta stock.
-     * 3. Guarda la venta con Snapshot y Usuario.
+/**
+     * CREAR VENTA (Con Snapshots)
      */
     create: async (data) => {
         let connection;
         try {
-            connection = getDB(); // Obtenemos la conexión
-            await connection.beginTransaction(); // INICIO DE TRANSACCIÓN
+            connection = getDB();
+            await connection.beginTransaction();
 
             const { productos, idUsuario, idCliente } = data;
+
+            // 1. OBTENER SNAPSHOTS (Nombres actuales)
+            // Usuario
+            const [userRows] = await connection.execute('SELECT Usuario FROM users WHERE ID = ?', [idUsuario]);
+            const usuarioSnapshot = userRows.length > 0 ? userRows[0].Usuario : 'Desconocido';
+
+            // Cliente (Si hay)
+            let clienteSnapshot = 'Público General';
+            if (idCliente) {
+                const [clientRows] = await connection.execute('SELECT Nombre FROM clientes WHERE ID = ?', [idCliente]);
+                if (clientRows.length > 0) clienteSnapshot = clientRows[0].Nombre;
+            }
+
             const registrosVenta = [];
 
-            // Procesamos cada producto solicitado
+            // 2. PROCESAR PRODUCTOS
             for (const item of productos) {
-                // A. Buscar datos actuales del producto (Para Snapshot y Stock)
-                const [prodRows] = await connection.execute(
-                    'SELECT Producto, Stock FROM productos WHERE ID = ?', 
-                    [item.ID]
-                );
+                // Verificar Stock
+                const [prodRows] = await connection.execute('SELECT Producto, Stock FROM productos WHERE ID = ?', [item.ID]);
+                if (prodRows.length === 0) throw new Error(`Producto ID ${item.ID} no encontrado`);
                 
-                if (prodRows.length === 0) {
-                    throw new Error(`Producto ID ${item.ID} no encontrado`);
-                }
-
-                const productoActual = prodRows[0];
+                const prod = prodRows[0];
                 const cantidad = item.cantidad || 1;
 
-                // B. Verificar Stock (Opcional: Si quieres permitir ventas negativas, comenta esto)
-                if (productoActual.Stock < cantidad) {
-                     throw new Error(`Stock insuficiente para ${productoActual.Producto}. Stock actual: ${productoActual.Stock}`);
-                }
+                if (prod.Stock < cantidad) throw new Error(`Stock insuficiente para ${prod.Producto}`);
 
-                // C. Descontar Stock
-                await connection.execute(
-                    'UPDATE productos SET Stock = Stock - ? WHERE ID = ?',
-                    [cantidad, item.ID]
-                );
+                // Restar Stock
+                await connection.execute('UPDATE productos SET Stock = Stock - ? WHERE ID = ?', [cantidad, item.ID]);
 
-                // D. Preparar filas para la tabla ventas (Una fila por unidad, según tu lógica actual)
-                // Estructura: ID_Producto, Producto_Snapshot, Precio, ID_Cliente, ID_Usuario
+                // Preparar filas para insertar (Una por unidad)
                 for (let i = 0; i < cantidad; i++) {
                     registrosVenta.push([
                         item.ID,
-                        productoActual.Producto, // <--- SNAPSHOT (Nombre en este momento)
-                        item.precio,             // Precio pactado
+                        prod.Producto,    // Producto_Snapshot
+                        item.precio,
                         idCliente || null,
-                        idUsuario                // Cajero responsable
+                        idUsuario,
+                        clienteSnapshot,  // <--- NUEVO
+                        usuarioSnapshot,  // <--- NUEVO
+                        'APROBADA'        // <--- NUEVO
                     ]);
                 }
             }
 
-            // E. Insertar Ventas Masivamente
+            // 3. INSERT MASIVO
             if (registrosVenta.length > 0) {
                 const sqlInsert = `
                     INSERT INTO ventas 
-                    (ID_Producto, Producto_Snapshot, Precio, ID_Cliente, ID_Usuario) 
+                    (ID_Producto, Producto_Snapshot, Precio, ID_Cliente, ID_Usuario, Cliente_Snapshot, Usuario_Snapshot, Estado) 
                     VALUES ?
                 `;
                 await connection.query(sqlInsert, [registrosVenta]);
             }
 
-            await connection.commit(); // CONFIRMAR CAMBIOS
-            return registrosVenta.length; // Retornamos total de items vendidos
+            await connection.commit();
+            return registrosVenta.length;
 
         } catch (error) {
-            if (connection) await connection.rollback(); // DESHACER CAMBIOS SI HAY ERROR
+            if (connection) await connection.rollback();
             throw error;
         }
     },
 
     /**
-     * Reporte por Rango de Fechas (Detallado)
+     * CANCELAR VENTA (Soft Delete)
+     * Cambia estado a CANCELADA y devuelve el Stock.
+     */
+    cancelar: async (idVenta) => {
+        let connection;
+        try {
+            connection = getDB();
+            await connection.beginTransaction();
+
+            // 1. Verificar estado actual
+            const [ventaRows] = await connection.execute(
+                'SELECT ID_Producto, Producto_Snapshot, Estado FROM ventas WHERE ID = ?', 
+                [idVenta]
+            );
+
+            if (ventaRows.length === 0) throw new Error('Venta no encontrada');
+            const venta = ventaRows[0];
+
+            if (venta.Estado === 'CANCELADA') throw new Error('Esta venta ya fue cancelada anteriormente.');
+
+            // 2. Devolver Stock (+1)
+            await connection.execute(
+                'UPDATE productos SET Stock = Stock + 1 WHERE ID = ?',
+                [venta.ID_Producto]
+            );
+
+            // 3. Cambiar Estado (NO BORRAR)
+            await connection.execute(
+                "UPDATE ventas SET Estado = 'CANCELADA' WHERE ID = ?", 
+                [idVenta]
+            );
+
+            await connection.commit();
+            return { success: true, producto: venta.Producto_Snapshot };
+
+        } catch (error) {
+            if (connection) await connection.rollback();
+            throw error;
+        }
+    },
+
+    /**
+     * OBTENER POR FECHA (Usando Snapshots y mostrando Estado)
      */
     getByDateRange: async (inicio, fin) => {
         try {
             const db = getDB();
-            // Usamos Producto_Snapshot para mostrar el nombre histórico
+            // Ya no hacemos tantos JOINs porque confiamos en los Snapshots
+            // Pero mantenemos ID_Producto por si queremos filtrar luego
             const sql = `
                 SELECT 
-                    v.ID, v.Fecha, v.Precio, 
-                    v.Producto_Snapshot as Producto,
-                    cl.Nombre as Cliente,
-                    u.Usuario as Vendedor
-                FROM ventas v
-                LEFT JOIN clientes cl ON v.ID_Cliente = cl.ID
-                LEFT JOIN users u ON v.ID_Usuario = u.ID
-                WHERE DATE(v.Fecha) BETWEEN ? AND ?
-                ORDER BY v.Fecha DESC
+                    ID, Fecha, Precio, Estado,
+                    Producto_Snapshot as Producto,
+                    Cliente_Snapshot as Cliente,
+                    Usuario_Snapshot as Vendedor,
+                    ID_Producto
+                FROM ventas 
+                WHERE DATE(Fecha) BETWEEN ? AND ?
+                ORDER BY Fecha DESC
             `;
             const [rows] = await db.execute(sql, [inicio, fin]);
             return rows;
@@ -100,7 +141,7 @@ const VentaModel = {
     },
 
     /**
-     * Estadísticas (KPIs) por fecha específica
+     * KPI TOTALES (Ignorando canceladas)
      */
     getStatsByDate: async (fecha) => {
         try {
@@ -112,12 +153,56 @@ const VentaModel = {
                     COUNT(DISTINCT ID_Producto) as productosDiferentes,
                     COUNT(DISTINCT ID_Cliente) as clientesAtendidos
                 FROM ventas 
-                WHERE DATE(Fecha) = ?
+                WHERE DATE(Fecha) = ? AND Estado = 'APROBADA'
             `;
             const [rows] = await db.execute(sql, [fecha]);
             return rows[0];
         } catch (error) { throw error; }
-    }
+    },
+
+    /**
+     * REPORTE AVANZADO (Filtros Dinámicos)
+     * Permite filtrar por fechas y/o producto específico.
+     * MODIFICADO: Solo muestra ventas con Estado = 'APROBADA' para no inflar los totales.
+     */
+    getReporteAvanzado: async (filtros) => {
+        try {
+            const db = getDB();
+            const { inicio, fin, idProducto } = filtros;
+
+            // CAMBIO CLAVE: En el WHERE forzamos que el Estado sea 'APROBADA'
+            let sql = `
+                SELECT 
+                    v.ID, v.Fecha, v.Precio, 
+                    v.Producto_Snapshot as Producto,
+                    cl.Nombre as Cliente,
+                    u.Usuario as Vendedor
+                FROM ventas v
+                LEFT JOIN clientes cl ON v.ID_Cliente = cl.ID
+                LEFT JOIN users u ON v.ID_Usuario = u.ID
+                WHERE v.Estado = 'APROBADA'
+            `;
+            
+            const params = [];
+
+            // 1. Filtro de Fechas (Si vienen ambas)
+            if (inicio && fin) {
+                sql += ' AND DATE(v.Fecha) BETWEEN ? AND ?';
+                params.push(inicio, fin);
+            }
+
+            // 2. Filtro de Producto
+            if (idProducto) {
+                sql += ' AND v.ID_Producto = ?';
+                params.push(idProducto);
+            }
+
+            sql += ' ORDER BY v.Fecha DESC';
+
+            const [rows] = await db.execute(sql, params);
+            return rows;
+        } catch (error) { throw error; }
+    },
 };
 
 module.exports = VentaModel;

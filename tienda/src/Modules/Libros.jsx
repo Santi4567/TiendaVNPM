@@ -147,7 +147,7 @@ const GestionLibros = () => {
     <div className="p-6 max-w-7xl mx-auto">
       {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Catálogo de Libros</h1>
+        <h1 className="text-3xl font-bold text-white">Catálogo de Libros</h1>
         <button 
             onClick={() => abrirModal()}
             className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 font-bold flex items-center gap-2 shadow-md"
@@ -255,7 +255,7 @@ const GestionLibros = () => {
               </div>
               
               {/* 2. CUERPO SCROLLABLE (MEDIO) */}
-              <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+              <div className="flex-1 overflow-y-auto p-6 bg-blue-800">
                   <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-gray-200 space-y-6">
                       
                       <div className="space-y-4">

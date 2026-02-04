@@ -73,6 +73,55 @@ const getTotalesHoy = async (req, res) => {
     }
 };
 
+
+// 6. REPORTE AVANZADO (Endpoint Maestro)
+const generarReporte = async (req, res) => {
+    try {
+        // Recibimos filtros del body o query
+        const { fechaInicio, fechaFin, idProducto, todoElTiempo } = req.body;
+        
+        let inicio = fechaInicio;
+        let fin = fechaFin;
+
+        // Si piden "Todo el tiempo", ignoramos las fechas (o mandamos null al modelo)
+        if (todoElTiempo) {
+            inicio = null;
+            fin = null;
+        }
+
+        const ventas = await VentaModel.getReporteAvanzado({ 
+            inicio, 
+            fin, 
+            idProducto: idProducto === 'TODOS' ? null : idProducto 
+        });
+
+        res.json({ success: true, data: ventas });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// 7. CANCELAR VENTA (Actualizado)
+const cancelarVenta = async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Ahora llamamos a .cancelar, no a .delete
+        const resultado = await VentaModel.cancelar(id);
+        
+        res.json({ 
+            success: true, 
+            message: `Venta cancelada. Se devolvió "${resultado.producto}" al inventario.` 
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
 module.exports = { 
-    crearVenta, getReporteHoy, getReporteFecha, getTotalesFecha, getTotalesHoy 
+    crearVenta, 
+    getReporteHoy, 
+    getReporteFecha, 
+    getTotalesFecha, 
+    getTotalesHoy,
+    generarReporte,
+    cancelarVenta 
 };
