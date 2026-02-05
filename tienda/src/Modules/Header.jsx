@@ -16,7 +16,7 @@ const Header = () => {
   const allNavItems = [
     { 
       name: 'Caja', 
-      path: '/', 
+      path: '/caja', 
       // Visible si puede crear ventas
       visible: hasPermission('create.sale') 
     },

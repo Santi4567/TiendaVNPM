@@ -4,6 +4,9 @@ import PrivateRoute from './PrivateRoute';
 import Layout from './Modules/Layout';
 import Login from './Modules/Login';
 
+//Inicio
+import Home from './Modules/Home.jsx';
+
 // Componentes
 import Cuentas from './Modules/Clientes.jsx';
 import Caja from './Modules/Caja.jsx';
@@ -56,9 +59,17 @@ function App() {
             <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
               
               {/* Rutas Generales (Accesibles según lógica interna o permisos base) */}
-              <Route path="/" element={<Caja />} />
+              <Route path="/" element={<Home />} />
               
               {/* Rutas con Permisos Específicos */}
+              <Route 
+                path="/caja" 
+                element={
+                  <PrivateRoute permiso="view.product">
+                    <Caja />
+                  </PrivateRoute>
+                } 
+              />
               <Route 
                 path="/clientes" 
                 element={

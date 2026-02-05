@@ -19,7 +19,7 @@ const Alacena = () => {
   const [modalFormOpen, setModalFormOpen] = useState(false);
   const [modoEdicion, setModoEdicion] = useState(false);
   const [formData, setFormData] = useState({ 
-      id: null, nombre: '', categoria: '', unidad: 'Pieza', vencimiento: '', stock: 0 
+      id: null, nombre: '', categoria: '', unidad: 'Pieza', vencimiento: '', stock: ''
   });
   
   // NUEVO: MODAL PARA AJUSTE RÁPIDO DE STOCK (Entrada/Salida)
@@ -69,7 +69,7 @@ const Alacena = () => {
       } else {
           setModoEdicion(false);
           // Reiniciamos stock en 0 al crear nuevo
-          setFormData({ id: null, nombre: '', categoria: '', unidad: 'Pieza', vencimiento: '', stock: 0 });
+          setFormData({ id: null, nombre: '', categoria: '', unidad: 'Pieza', vencimiento: '', stock: '' });
       }
       setModalFormOpen(true);
   };
@@ -469,24 +469,28 @@ const Alacena = () => {
                               />
                           </div>
 
-                          {/* STOCK (CONDICIONAL) */}
-                          {modoEdicion ? (
-                              <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 flex flex-col justify-center items-center text-center">
-                                  <span className="text-2xl mb-1">🔒</span>
-                                  <p className="text-sm text-yellow-800 font-bold leading-tight">
-                                      El stock se gestiona con el botón "⚡ Ajustar" en la tabla.
-                                  </p>
-                              </div>
-                          ) : (
-                              <div>
-                                  <label className="block text-xl font-bold text-gray-700 mb-2">📦 Stock Inicial</label>
-                                  <input 
-                                      required type="number" min="0" 
-                                      className="w-full border-2 border-gray-300 p-4 rounded-xl text-2xl font-bold text-blue-800 h-[68px]"
-                                      value={formData.stock} onChange={e => setFormData({...formData, stock: parseInt(e.target.value) || 0})} 
-                                  />
-                              </div>
-                          )}
+                        {/* STOCK (CONDICIONAL) */}
+                        {modoEdicion ? (
+                            <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 flex flex-col justify-center items-center text-center">
+                                <span className="text-2xl mb-1">🔒</span>
+                                <p className="text-sm text-yellow-800 font-bold leading-tight">
+                                    El stock se gestiona con el botón "⚡ Ajustar" en la tabla.
+                                </p>
+                            </div>
+                        ) : (
+                            <div>
+                                <label className="block text-xl font-bold text-gray-700 mb-2">📦 Stock Inicial</label>
+                                <input 
+                                    required 
+                                    type="number" 
+                                    min="0"
+                                    placeholder="0" 
+                                    className="w-full border-2 border-gray-300 p-4 rounded-xl text-2xl font-bold text-blue-800 h-[68px] placeholder-gray-300"
+                                    value={formData.stock} 
+                                    onChange={e => setFormData({ ...formData, stock: e.target.value })} 
+                                />
+                            </div>
+                        )}
                       </div>
 
                       <div className="mt-8 flex justify-end gap-4 pt-4 border-t border-gray-100">

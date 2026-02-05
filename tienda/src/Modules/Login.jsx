@@ -9,7 +9,8 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
-  const { login } = useAuth();
+  // Importamos refreshProfile (que es el checkSession del contexto)
+  const { refreshProfile } = useAuth(); 
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -18,10 +19,16 @@ const Login = () => {
     setLoading(true);
 
     try {
+      // 1. Hacemos el Login (esto crea la cookie en el backend)
       const res = await apiCall('/api/users/login', 'POST', { Usuario: usuario, Passwd: password });
 
       if (res.data.success) {
-        login(res.data.data.user); 
+        // 2. CAMBIO CLAVE:
+        // En lugar de usar los datos de 'res', le decimos al Contexto:
+        // "Oye, ya tengo cookie válida, ve al servidor y trae mi perfil COMPLETO con permisos"
+        await refreshProfile(); 
+        
+        // 3. Ahora sí nos vamos al Home
         navigate('/'); 
       } else {
         setError(res.data.message || 'Credenciales incorrectas');
@@ -36,10 +43,8 @@ const Login = () => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-600 to-indigo-800">
       
-      {/* Contenedor Principal (Tarjeta blanca) */}
       <div className="w-full max-w-lg px-8 py-12 transition-all duration-300 transform bg-white shadow-2xl rounded-3xl sm:px-12 border border-white/20 backdrop-blur-sm">
         
-        {/* Encabezado */}
         <div className="mb-10 text-center">
           <h1 className="text-5xl font-extrabold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-indigo-600 mb-2">
             GestionVN
@@ -49,7 +54,6 @@ const Login = () => {
           </p>
         </div>
 
-        {/* Mensaje de Error */}
         {error && (
           <div className="mb-6 p-4 text-sm text-red-600 bg-red-50 border-l-4 border-red-500 rounded animate-fade-in-down flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -59,7 +63,6 @@ const Login = () => {
           </div>
         )}
         
-        {/* Formulario */}
         <form onSubmit={handleSubmit} className="space-y-6">
           
           <div className="space-y-1">
@@ -115,7 +118,6 @@ const Login = () => {
           </button>
         </form>
 
-        {/* Footer simple */}
         <div className="mt-8 text-center">
           <p className="text-xs text-gray-500">
             © 2026 Plataforma Segura. Todos los derechos reservados.

@@ -1,6 +1,7 @@
 const { getDB } = require('../config/database');
 
 const VentaLibroModel = {
+    //1.Crear un venta
     create: async (data) => {
         let connection;
         try {
@@ -81,18 +82,99 @@ const VentaLibroModel = {
             throw error;
         }
     },
-    // Listar Ventas con Filtros
+   // 2. HISTORIAL CON FILTROS AVANZADOS
     findAll: async (filtros = {}) => {
         try {
             const db = getDB();
+            const { inicio, fin, estado, busqueda } = filtros;
+
             let sql = `
                 SELECT * FROM ventas_libreria 
-                ORDER BY Fecha DESC
-                LIMIT 100
+                WHERE 1=1
             `;
-            // Aquí puedes agregar WHERE dinámicos si necesitas filtrar por fecha o cliente
-            const [rows] = await db.execute(sql);
+            const params = [];
+
+            // Filtro Fechas
+            if (inicio && fin) {
+                sql += ' AND DATE(Fecha) BETWEEN ? AND ?';
+                params.push(inicio, fin);
+            }
+
+            // Filtro Estado
+            if (estado && estado !== 'TODOS') {
+                sql += ' AND Estado = ?';
+                params.push(estado);
+            }
+
+            // Filtro Búsqueda
+            if (busqueda) {
+                sql += ' AND (Cliente_Snapshot LIKE ? OR Usuario_Snapshot LIKE ? OR ID = ?)';
+                params.push(`%${busqueda}%`, `%${busqueda}%`, busqueda);
+            }
+
+            sql += ' ORDER BY Fecha DESC LIMIT 500';
+
+            const [rows] = await db.execute(sql, params);
             return rows;
+        } catch (error) { throw error; }
+    },
+
+    // 3. ESTADÍSTICAS Y GRÁFICAS (KPIs)
+    getStats: async (inicio, fin) => {
+        try {
+            const db = getDB();
+            let params = [];
+            let whereClause = "WHERE v.Estado != 'CANCELADO'"; // Ignoramos canceladas
+
+            if (inicio && fin) {
+                whereClause += ' AND DATE(v.Fecha) BETWEEN ? AND ?';
+                params.push(inicio, fin);
+            }
+
+            // A. KPI FINANCIEROS
+            // IngresoReal = Suma de todo lo que han pagado (sea de ventas liquidadas o abonos de pendientes)
+            // Deuda = Lo que falta por pagar solo de las pendientes
+            const sqlKpi = `
+                SELECT 
+                    COALESCE(SUM(v.Monto_Pagado), 0) as IngresoReal,
+                    COALESCE(SUM(CASE WHEN v.Estado = 'PENDIENTE' THEN (v.Total_Venta - v.Monto_Pagado) ELSE 0 END), 0) as DeudaPendiente,
+                    COUNT(DISTINCT v.ID) as TotalTickets
+                FROM ventas_libreria v
+                ${whereClause}
+            `;
+            const [rowsKpi] = await db.execute(sqlKpi, params);
+
+            // B. TOP 5 LIBROS MÁS VENDIDOS
+            // Como guardas 1 fila por cada libro unitario en 'detalle_ventas_libreria', hacemos un COUNT
+            const sqlTop = `
+                SELECT 
+                    d.Titulo_Snapshot as Titulo, 
+                    COUNT(d.ID) as Vendidos
+                FROM detalle_ventas_libreria d
+                JOIN ventas_libreria v ON d.ID_Venta = v.ID
+                ${whereClause}
+                GROUP BY d.Titulo_Snapshot
+                ORDER BY Vendidos DESC
+                LIMIT 5
+            `;
+            // Necesitamos duplicar params porque es una nueva consulta con los mismos filtros
+            const [rowsTop] = await db.execute(sqlTop, params);
+
+            // C. TOTAL LIBROS VENDIDOS
+            const sqlCount = `
+                SELECT COUNT(d.ID) as TotalLibros
+                FROM detalle_ventas_libreria d
+                JOIN ventas_libreria v ON d.ID_Venta = v.ID
+                ${whereClause}
+            `;
+            const [rowsCount] = await db.execute(sqlCount, params);
+
+            return {
+                financiero: rowsKpi[0],
+                topLibros: rowsTop,
+                totalLibros: rowsCount[0].TotalLibros || 0
+            };
+
         } catch (error) { throw error; }
     },
 

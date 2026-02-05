@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { crearVenta,
         getHistorial,
+        getEstadisticas,
         getDetallesVenta,
         abonarVenta,
         getAbonosVenta,
@@ -10,19 +11,25 @@ const { crearVenta,
 } = require('../controllers/ventaLibroController');
 const { verifyToken } = require('../middleware/auth');
 
+//POST Crear un venta
 router.post('/checkout', verifyToken, crearVenta);
 
-//abonos 
-router.get('/historial', verifyToken, getHistorial); // GET historial
+// GET historial 
+router.get('/historial', verifyToken, getHistorial); 
 
-router.get('/:id/detalles', verifyToken, getDetallesVenta); // GET detalles
+// GET detalles
+router.get('/:id/detalles', verifyToken, getDetallesVenta); 
 
-router.put('/:id/abonar', verifyToken, abonarVenta); // PUT abono
+// PUT abono
+router.put('/:id/abonar', verifyToken, abonarVenta); 
 
 //Traer los abonos de un venta
 router.get('/:id/abonos', verifyToken, getAbonosVenta);
 
 //cancelar una venta
-router.put('/:id/cancelar', verifyToken, cancelarVenta); // <--- Nueva ruta
+router.put('/:id/cancelar', verifyToken, cancelarVenta); //
+
+//stadisticas de venta seccion Libros
+router.get('/stats', verifyToken, getEstadisticas);//
 
 module.exports = router;

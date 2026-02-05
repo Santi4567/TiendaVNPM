@@ -64,10 +64,22 @@ const crearVenta = async (req, res) => {
     }
 };
 
+// ACTULIZADO: Recibe filtros query params
 const getHistorial = async (req, res) => {
     try {
-        const ventas = await VentaLibroModel.findAll();
+        const { inicio, fin, estado, busqueda } = req.query;
+        // Pasamos los filtros al modelo
+        const ventas = await VentaLibroModel.findAll({ inicio, fin, estado, busqueda });
         res.json(ventas);
+    } catch (error) { res.status(500).json({ error: error.message }); }
+};
+
+// NUEVO: Endpoint para gráficas
+const getEstadisticas = async (req, res) => {
+    try {
+        const { inicio, fin } = req.query;
+        const stats = await VentaLibroModel.getStats(inicio, fin);
+        res.json(stats);
     } catch (error) { res.status(500).json({ error: error.message }); }
 };
 
@@ -145,4 +157,4 @@ const getHistorialGlobal = async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 };
 
-module.exports = { crearVenta, getHistorial, getDetallesVenta, abonarVenta, getAbonosVenta, cancelarVenta,getHistorialGlobal };
+module.exports = { crearVenta, getHistorial,getEstadisticas, getDetallesVenta, abonarVenta, getAbonosVenta, cancelarVenta,getHistorialGlobal };

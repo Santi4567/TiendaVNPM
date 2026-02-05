@@ -508,7 +508,7 @@ const guardarUsuario = async (e) => {
                                   />
                                   <div>
                                       <span className="block font-bold text-gray-800 text-sm">{permiso.Nombre}</span>
-                                      <span className="text-xs text-gray-500">{permiso.Descripcion}</span>
+                                      <span className="text-xs text-black">{permiso.Descripcion}</span>
                                   </div>
                               </label>
                           ))}
