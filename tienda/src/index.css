@@ -1,3 +1,15 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Puedes agregar estilos de scrollbar si quieres, usando CSS estándar para evitar errores */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a; /* slate-900 */
+}
+::-webkit-scrollbar-thumb {
+  background-color: #1e40af; /* blue-800 */
+  border-radius: 8px;
+}

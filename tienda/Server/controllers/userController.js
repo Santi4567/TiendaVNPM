@@ -1,0 +1,214 @@
+const bcrypt = require('bcrypt');
+const UsuarioModel = require('../models/Usuario');
+
+// CREAR USUARIO (Register)
+const createUser = async (req, res) => {
+    try {
+        const { Usuario, Nombre_Completo, Passwd, ID_Rol } = req.body;
+
+        // 1. Verificar si ya existe
+        const exists = await UsuarioModel.exists(Usuario);
+        if (exists) {
+            return res.status(400).json({ message: 'El usuario ya existe' });
+        }
+
+        // 2. Hash Password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(Passwd, salt);
+
+        // 3. Crear
+        const newId = await UsuarioModel.create({
+            usuario: Usuario,
+            nombreCompleto: Nombre_Completo,
+            passwd: hashedPassword,
+            idRol: ID_Rol
+        });
+
+        res.status(201).json({ success: true, id: newId, message: 'Usuario creado' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// MODIFICAR USUARIO
+// MODIFICAR USUARIO
+const updateUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { Usuario, Nombre_Completo, ID_Rol, Activo } = req.body;
+
+        // --- PROTECCIÓN BLINDADA ---
+        // 1. Nadie puede editar al Super Admin (ID 1)
+        if (parseInt(id) === 1) {
+            return res.status(403).json({ error: 'El Super Administrador está protegido y no se puede editar.' });
+        }
+        
+        // 2. Verificar si el usuario existe
+        const currentData = await UsuarioModel.findById(id);
+        if (!currentData) {
+            return res.status(404).json({ message: 'Usuario no encontrado' });
+        }
+
+        // 3. Actualizar
+        await UsuarioModel.update(id, {
+            usuario: Usuario,
+            nombreCompleto: Nombre_Completo,
+            idRol: ID_Rol,
+            activo: Activo !== undefined ? Activo : currentData.Activo
+        });
+
+        res.status(200).json({ success: true, message: 'Usuario actualizado' });
+
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Agrega esta función a tu controlador
+const getProfile = async (req, res) => {
+    try {
+        // req.user viene del middleware verifyToken
+        const userId = req.user.userId;
+
+        const profile = await UsuarioModel.getProfile(userId);
+
+        if (!profile) {
+            return res.status(404).json({ message: 'Usuario no encontrado' });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: profile
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error al obtener perfil' });
+    }
+};
+
+// OBTENER TODOS LOS USUARIOS
+const getAllUsers = async (req, res) => {
+    try {
+        const users = await UsuarioModel.findAll();
+        res.status(200).json({ success: true, data: users });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// BUSCAR POR ID (Para que el admin vea detalles de otro usuario)
+const getUserById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = await UsuarioModel.findById(id);
+
+        if (!user) {
+            return res.status(404).json({ message: 'Usuario no encontrado' });
+        }
+        
+        // El modelo findById ya hace JOIN con roles, así que devolvemos directo
+        res.status(200).json({ success: true, data: user });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// BUSCAR POR USERNAME
+const getUserByUsername = async (req, res) => {
+    try {
+        const { username } = req.params;
+        const user = await UsuarioModel.findByUsername(username);
+
+        if (!user) {
+            return res.status(404).json({ message: 'Usuario no encontrado' });
+        }
+
+        // IMPORTANTE: findByUsername devuelve el password (para el login), 
+        // así que aquí debemos quitarlo antes de enviarlo al frontend.
+        const { Passwd, ...userWithoutPassword } = user;
+
+        res.status(200).json({ success: true, data: userWithoutPassword });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// ELIMINAR USUARIO (Desactivar)
+const deleteUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const targetId = parseInt(id);
+        const requesterId = req.user.userId;
+
+        // 1. PROTECCIÓN: Nadie toca al Super Admin (ID 1)
+        if (targetId === 1) {
+            return res.status(400).json({ message: 'El Super Administrador es intocable.' });
+        }
+
+        // 2. PROTECCIÓN: No puedes desactivarte a ti mismo
+        if (targetId === requesterId) {
+            return res.status(400).json({ message: 'No puedes desactivar tu propia cuenta mientras está en uso.' });
+        }
+
+        const success = await UsuarioModel.delete(id);
+        
+        if (!success) {
+            return res.status(404).json({ message: 'Usuario no encontrado' });
+        }
+
+        res.status(200).json({ success: true, message: 'Usuario desactivado correctamente' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+
+// NUEVO: Reactivar
+const reactivateUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await UsuarioModel.reactivate(id);
+        res.status(200).json({ success: true, message: 'Usuario reactivado correctamente' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Eliminar Definitivamente
+const forceDeleteUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // PROTECCIÓN CRÍTICA: Nadie borra al Admin Principal (ID 1)
+        if (parseInt(id) === 1) {
+            return res.status(403).json({ message: 'No se puede eliminar al Super Administrador' });
+        }
+        
+        // Evitar suicidio digital
+        if (parseInt(id) === req.user.userId) {
+            return res.status(400).json({ message: 'No puedes eliminar tu propia cuenta' });
+        }
+
+        await UsuarioModel.hardDelete(id);
+        res.status(200).json({ success: true, message: 'Usuario eliminado permanentemente' });
+    } catch (error) {
+        // Si falla por Foreign Keys (tiene ventas), avisamos
+        if (error.code === 'ER_ROW_IS_REFERENCED_2') {
+             return res.status(400).json({ message: 'No se puede eliminar: El usuario tiene historial de ventas/compras.' });
+        }
+        res.status(500).json({ message: error.message });
+    }
+};
+
+module.exports = { 
+    createUser, 
+    updateUser, 
+    getProfile, 
+    getAllUsers, 
+    getUserById, 
+    getUserByUsername, 
+    deleteUser,
+    reactivateUser,
+    forceDeleteUser 
+};
