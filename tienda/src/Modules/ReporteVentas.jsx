@@ -188,7 +188,7 @@ const ReporteVentas = () => {
             </div>
             
             {datos.fechasOrdenadas.length > 0 ? (
-                <div className="w-full overflow-x-auto custom-scrollbar relative" style={{ height: chartHeight + 100 }}>
+                <div className="w-full custom-scrollbar relative" style={{ height: chartHeight + 100 }}>
                     
                     {/* SVG Fondo (Líneas y Ejes) */}
                     <svg width={svgTotalWidth} height={chartHeight + 100} className="absolute top-0 left-0 pointer-events-none">

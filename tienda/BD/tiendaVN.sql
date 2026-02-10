@@ -61,7 +61,7 @@ CREATE TABLE `alacena_articulos` (
   `Fecha_Vencimiento` date DEFAULT NULL,
   `Activo` tinyint DEFAULT '1',
   PRIMARY KEY (`ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -70,7 +70,7 @@ CREATE TABLE `alacena_articulos` (
 
 LOCK TABLES `alacena_articulos` WRITE;
 /*!40000 ALTER TABLE `alacena_articulos` DISABLE KEYS */;
-INSERT INTO `alacena_articulos` VALUES (6,'arroz','Granos','Kg',19,'2026-02-27',1),(7,'aceite','Otros','Pieza',9,NULL,1),(9,'prueba1','Aceites','Litro',19,'2026-02-27',1);
+INSERT INTO `alacena_articulos` VALUES (6,'arroz','Granos','Kg',19,'2026-02-27',1),(7,'aceite','Otros','Pieza',9,NULL,1),(9,'prueba1','Aceites','Litro',19,'2026-02-27',1),(10,'prueba 2','Aceites','Litro',1,'2026-02-21',1);
 /*!40000 ALTER TABLE `alacena_articulos` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -93,7 +93,7 @@ CREATE TABLE `alacena_movimientos` (
   PRIMARY KEY (`ID`),
   KEY `ID_Articulo` (`ID_Articulo`),
   CONSTRAINT `alacena_movimientos_ibfk_1` FOREIGN KEY (`ID_Articulo`) REFERENCES `alacena_articulos` (`ID`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -102,7 +102,7 @@ CREATE TABLE `alacena_movimientos` (
 
 LOCK TABLES `alacena_movimientos` WRITE;
 /*!40000 ALTER TABLE `alacena_movimientos` DISABLE KEYS */;
-INSERT INTO `alacena_movimientos` VALUES (6,6,'SALIDA',1,'preuba',1,'Administrador Principal','2026-02-04 15:15:34'),(7,6,'ENTRADA',10,'donacion',1,'Administrador Principal','2026-02-04 15:30:08'),(8,6,'SALIDA',1,'caducidad vencida',1,'Administrador Principal','2026-02-04 15:30:40'),(9,9,'ENTRADA',20,'Inventario Inicial (Creación)',1,'Administrador Principal','2026-02-04 15:36:48'),(10,7,'SALIDA',1,'familia perez',1,'Administrador Principal','2026-02-04 15:40:43'),(11,6,'SALIDA',1,'familia perez',1,'Administrador Principal','2026-02-04 15:40:43'),(12,9,'SALIDA',1,'familia perez',1,'Administrador Principal','2026-02-04 15:40:43');
+INSERT INTO `alacena_movimientos` VALUES (6,6,'SALIDA',1,'preuba',1,'Administrador Principal','2026-02-04 15:15:34'),(7,6,'ENTRADA',10,'donacion',1,'Administrador Principal','2026-02-04 15:30:08'),(8,6,'SALIDA',1,'caducidad vencida',1,'Administrador Principal','2026-02-04 15:30:40'),(9,9,'ENTRADA',20,'Inventario Inicial (Creación)',1,'Administrador Principal','2026-02-04 15:36:48'),(10,7,'SALIDA',1,'familia perez',1,'Administrador Principal','2026-02-04 15:40:43'),(11,6,'SALIDA',1,'familia perez',1,'Administrador Principal','2026-02-04 15:40:43'),(12,9,'SALIDA',1,'familia perez',1,'Administrador Principal','2026-02-04 15:40:43'),(13,10,'ENTRADA',1,'Inventario Inicial (Creación)',1,'Administrador Principal','2026-02-05 15:23:32');
 /*!40000 ALTER TABLE `alacena_movimientos` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -300,7 +300,7 @@ CREATE TABLE `roles` (
   `Descripcion` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   PRIMARY KEY (`ID`),
   UNIQUE KEY `Nombre` (`Nombre`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -309,7 +309,7 @@ CREATE TABLE `roles` (
 
 LOCK TABLES `roles` WRITE;
 /*!40000 ALTER TABLE `roles` DISABLE KEYS */;
-INSERT INTO `roles` VALUES (1,'Admin','Acceso total al sistema'),(2,'Vendedor-Tienda','Acceso a tiendita');
+INSERT INTO `roles` VALUES (1,'Admin','Acceso total al sistema'),(2,'Vendedor-Tienda','Acceso a tiendita'),(4,'vendedor-Libreria',NULL);
 /*!40000 ALTER TABLE `roles` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -336,7 +336,7 @@ CREATE TABLE `roles_permisos` (
 
 LOCK TABLES `roles_permisos` WRITE;
 /*!40000 ALTER TABLE `roles_permisos` DISABLE KEYS */;
-INSERT INTO `roles_permisos` VALUES (2,1),(2,2),(2,3),(2,4),(2,5),(2,6),(2,7),(2,8),(2,9),(2,10),(2,11),(2,12),(2,13),(2,15);
+INSERT INTO `roles_permisos` VALUES (2,1),(2,2),(2,3),(2,4),(2,5),(2,6),(2,7),(2,8),(2,9),(2,10),(2,11),(2,12),(2,13),(2,15),(4,17);
 /*!40000 ALTER TABLE `roles_permisos` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -359,7 +359,7 @@ CREATE TABLE `users` (
   UNIQUE KEY `Usuario` (`Usuario`),
   KEY `ID_Rol` (`ID_Rol`),
   CONSTRAINT `fk_usuario_rol` FOREIGN KEY (`ID_Rol`) REFERENCES `roles` (`ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -368,7 +368,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'admin','Administrador Principal','$2a$12$WHeIbrwaUYcNG9Q1yU4X9e.ev3URbzcbFoMBnyH9KWd2OUW6WdUna',1,1,'2026-01-09 19:28:40'),(5,'vendedor-tienda','Antozac','$2b$10$amOgFihxNTQz3iqDKBgxpOopriqVtjw5iftpT96biWZaQt0pWOwna',2,1,'2026-01-28 23:07:08');
+INSERT INTO `users` VALUES (1,'admin','Administrador Principal','$2a$12$WHeIbrwaUYcNG9Q1yU4X9e.ev3URbzcbFoMBnyH9KWd2OUW6WdUna',1,1,'2026-01-09 19:28:40'),(5,'vendedor-tienda','Antozac','$2b$10$amOgFihxNTQz3iqDKBgxpOopriqVtjw5iftpT96biWZaQt0pWOwna',2,1,'2026-01-28 23:07:08'),(6,'Libreria@vn.com','Lupita','$2b$10$cy8BIZhkJ1L7r9177spmFORX9BvEyDebieTWgRsiL10pWLp6tmi0O',4,1,'2026-02-05 22:18:42');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -450,4 +450,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-02-04 16:24:15
+-- Dump completed on 2026-02-09 11:55:13

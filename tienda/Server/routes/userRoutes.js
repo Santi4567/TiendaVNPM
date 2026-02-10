@@ -25,28 +25,54 @@ router.get('/profile', verifyToken, getProfile);
 // ----------------------------------------------
 
 // Listar todos
-router.get('/', verifyToken, requireAdmin, getAllUsers);
+router.get('/', 
+    verifyToken, 
+    requireAdmin, 
+    getAllUsers);
 
 // Buscar por Username (Ej: /api/users/username/juanperez)
-router.get('/username/:username', verifyToken, requireAdmin, getUserByUsername);
+router.get('/username/:username', 
+    verifyToken, 
+    requireAdmin, 
+    getUserByUsername);
 
 // Crear usuario
-router.post('/', verifyToken, requireAdmin, validateCreateUser, createUser);
+router.post('/', 
+    verifyToken, 
+    requireAdmin, 
+    validateCreateUser, 
+    createUser);
 
 // Buscar por ID (Ej: /api/users/5)
 // ¡OJO! Esta ruta captura cualquier cosa después de /, por eso va al final
-router.get('/:id', verifyToken, requireAdmin, getUserById);
+router.get('/:id', 
+    verifyToken, 
+    requireAdmin, 
+    getUserById);
 
 // Modificar usuario
-router.put('/:id', verifyToken, requireAdmin, validateUpdateUser, updateUser);
+router.put('/:id', 
+    verifyToken, 
+    requireAdmin, 
+    validateUpdateUser, 
+    updateUser);
 
 // Desactivar 
-router.delete('/:id', verifyToken, requireAdmin, deleteUser);
+router.delete('/:id', 
+    verifyToken, 
+    requireAdmin, 
+    deleteUser);
 
 // Reactivar (PUT)
-router.put('/:id/reactivar', verifyToken, requireAdmin, reactivateUser);
+router.put('/:id/reactivar', 
+    verifyToken, 
+    requireAdmin, 
+    reactivateUser);
 
 // Eliminar Definitivo (DELETE FORCE)
-router.delete('/:id/force', verifyToken, requireAdmin, forceDeleteUser);
+router.delete('/:id/force', 
+    verifyToken, 
+    requireAdmin, 
+    forceDeleteUser);
 
 module.exports = router;
