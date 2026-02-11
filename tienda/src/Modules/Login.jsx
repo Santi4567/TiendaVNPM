@@ -1,105 +1,132 @@
-import { useState } from "react";
-const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:3001';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { apiCall } from '../utils/api';
 
-export default function LoginComponent() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+const Login = () => {
+  const [usuario, setUsuario] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  
+  // Importamos refreshProfile (que es el checkSession del contexto)
+  const { refreshProfile } = useAuth(); 
+  const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Login attempt:", { email, password });
-    // Aquí agregarías la lógica de autenticación
+    setError('');
+    setLoading(true);
+
+    try {
+      // 1. Hacemos el Login (esto crea la cookie en el backend)
+      const res = await apiCall('/api/users/login', 'POST', { Usuario: usuario, Passwd: password });
+
+      if (res.data.success) {
+        // 2. CAMBIO CLAVE:
+        // En lugar de usar los datos de 'res', le decimos al Contexto:
+        // "Oye, ya tengo cookie válida, ve al servidor y trae mi perfil COMPLETO con permisos"
+        await refreshProfile(); 
+        
+        // 3. Ahora sí nos vamos al Home
+        navigate('/'); 
+      } else {
+        setError(res.data.message || 'Credenciales incorrectas');
+        setLoading(false);
+      }
+    } catch (err) {
+      setError('Error de conexión con el servidor');
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
-      {/* Formas decorativas de fondo */}
-      <div className="absolute top-0 left-0 w-72 h-72 bg-gradient-to-br from-blue-200/20 to-purple-200/20 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-indigo-200/20 to-blue-200/20 rounded-full blur-3xl"></div>
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-600 to-indigo-800">
       
-      {/* Contenedor principal */}
-      <div className="relative bg-white/70 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-8 w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl mb-4">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-              <div className="w-4 h-4 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-sm"></div>
-            </div>
-          </div>
-          
-          {/* Icono de barras */}
-          <div className="flex justify-center space-x-1 mb-6">
-            <div className="w-1 h-4 bg-indigo-600 rounded-full"></div>
-            <div className="w-1 h-6 bg-indigo-600 rounded-full"></div>
-            <div className="w-1 h-4 bg-indigo-600 rounded-full"></div>
-          </div>
+      <div className="w-full max-w-lg px-8 py-12 transition-all duration-300 transform bg-white shadow-2xl rounded-3xl sm:px-12 border border-white/20 backdrop-blur-sm">
+        
+        <div className="mb-10 text-center">
+          <h1 className="text-5xl font-extrabold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-indigo-600 mb-2">
+            GestionVN
+          </h1>
+          <p className="text-gray-500 text-sm font-medium tracking-wide uppercase">
+            Sistema de Administración
+          </p>
         </div>
 
-        {/* Título */}
-        <h1 className="text-2xl font-semibold text-gray-800 text-center mb-8">
-          Log in
-        </h1>
-
-        {/* Formulario */}
-        <div className="space-y-6">
-          {/* Campo Email */}
-          <div>
-            <input
-              type="email"
-              placeholder="Your Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-4 bg-gray-50/50 border border-gray-200/50 rounded-2xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-            />
+        {error && (
+          <div className="mb-6 p-4 text-sm text-red-600 bg-red-50 border-l-4 border-red-500 rounded animate-fade-in-down flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            {error}
+          </div>
+        )}
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
+          
+          <div className="space-y-1">
+            <label className="block text-sm font-bold text-gray-700 ml-1">Usuario</label>
+            <div className="relative">
+              <input
+                type="text"
+                required
+                placeholder="Ingresa tu usuario"
+                value={usuario}
+                onChange={(e) => setUsuario(e.target.value)}
+                className="w-full px-5 py-4 text-gray-800 bg-gray-200 border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 placeholder-gray-400"
+              />
+            </div>
           </div>
 
-          {/* Campo Password */}
-          <div className="relative">
-            <input
-              type={showPassword ? "text" : "password"}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-4 bg-gray-50/50 border border-gray-200/50 rounded-2xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 pr-12"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-            >
-              {showPassword ? (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              )}
-            </button>
+          <div className="space-y-1">
+            <div className="flex justify-between items-center ml-1">
+              <label className="block text-sm font-bold text-gray-700">Contraseña</label>
+            </div>
+            <div className="relative">
+              <input
+                type="password"
+                required
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-5 py-4 text-gray-800 bg-gray-200 border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 placeholder-gray-400 tracking-widest"
+              />
+            </div>
           </div>
 
-          {/* Forgot password */}
-          <div className="text-right">
-            <button
-              type="button"
-              className="text-indigo-600 hover:text-indigo-700 text-sm font-medium transition-colors duration-200"
-            >
-              Forgot password?
-            </button>
-          </div>
-
-          {/* Botón de login */}
           <button
-            onClick={handleSubmit}
-            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium py-4 px-6 rounded-2xl transition-all duration-200 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 shadow-lg"
+            type="submit"
+            disabled={loading}
+            className={`w-full py-4 mt-4 text-lg font-bold text-white transition-all duration-200 rounded-xl shadow-lg 
+              ${loading 
+                ? 'bg-blue-400 cursor-not-allowed' 
+                : 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 hover:shadow-blue-500/30 hover:-translate-y-0.5 active:scale-[0.98]'
+              }`}
           >
-            Log in
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="w-5 h-5 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Iniciando...
+              </span>
+            ) : (
+              'Ingresar al Sistema'
+            )}
           </button>
-        </div>     
+        </form>
+
+        <div className="mt-8 text-center">
+          <p className="text-xs text-gray-500">
+            © 2026 Plataforma Segura. Todos los derechos reservados.
+          </p>
+        </div>
+
       </div>
     </div>
   );
-}
+};
+
+export default Login;
